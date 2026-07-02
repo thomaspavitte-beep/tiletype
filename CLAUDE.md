@@ -58,7 +58,24 @@ path grid, not by the 52.5 artboard — see "How rendering works".
   section also has a **Square** button that pads any hand-typed grid to square with centred blanks.
   Output is ordinary `lines` cells, so a generated poem stays fully hand-editable and exports as usual.
 - **Export** — `buildSVG()` composes the current grid into one SVG (vector); PNG is that SVG drawn to
-  a canvas at 2×/4×/8×. Both are seamless and use the same registration grid as the screen.
+  a canvas at 2×/4×/8×. Both are seamless and use the same registration grid as the screen. The
+  background rect uses an inline `style="fill:…"` because the exported stylesheet's `rect{fill:none}`
+  would override a plain `fill` attribute.
+- **Strands** — the engine fuses lines that continue across tile boundaries. `extractInner` explodes
+  multi-subpath paths so 1 element = 1 segment; `tileGeometry(key)` caches each segment's endpoints
+  (via `getPointAtLength` in a hidden svg); `computeStrands()` maps endpoints to global grid coords
+  (same rotate-about-26.25 math as export), snaps to 0.05, and union-finds segments whose endpoints
+  coincide at points shared by exactly 2 segments (junctions >2 are left uncut; dots and
+  circles/loops are excluded). Strands spanning **≥ 2 cells** get seeded golden-angle `hsl` colours;
+  single-cell strands and dots stay ink — letter *bodies* remain readable, though letters' small
+  edge arcs legitimately join field strands (they really do touch the boundary; 4–16 per letter).
+  UI: **Colour strands** checkbox + **Recolour** (new seed). On screen colours are applied after
+  every `render()` via inline `style.setProperty("stroke", …, "important")` (beats the injected
+  `currentColor!important` rule); SVG/PNG exports get per-element inline styles via
+  `colouredMarkup()`. GIF/WebM animation exports remain ink-only (per-key raster cache can't hold
+  per-cell colours). Gotcha: `strandState`/`DRAWABLES` are declared with the document model because
+  `render()` runs during control wire-up, before the engine block (TDZ otherwise). Future layers on
+  this engine: draw-on strand animation, hover-to-trace, fused single-path export.
 - **Typewriter animation** — the composition reveals tile by tile (`revealOrder`: `typewriter`
   row-major, `letters first`, `patterns first`, or `random` — a seeded shuffle of every tile;
   speed slider = tiles/sec with per-tile jitter).

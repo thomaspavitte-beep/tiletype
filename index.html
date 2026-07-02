@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tiles — Type</title>
-<style>
+<title>Tiles — Type</title><style>
   * { box-sizing: border-box; }
   html, body { margin:0; height:100%; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
   body { display:flex; background:#111; color:#e8e8e8; overflow:hidden; }
@@ -77,6 +76,12 @@
     <div class="row"><span>Pattern density</span><span><input id="pDensity" type="range" min="0" max="100" step="5" value="100"><span class="val" id="pDensityV"></span></span></div>
     <div class="row"><span>Border</span><input id="pBorder" type="checkbox" checked></div>
     <div class="row"><span>Square canvas</span><input id="pSquare" type="checkbox" checked></div>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">Strands</div>
+    <div class="row"><span>Colour strands</span><input id="sOn" type="checkbox"></div>
+    <div class="btns"><button id="sRecolour">Recolour</button></div>
   </div>
 
   <div class="sec">
@@ -172,6 +177,20 @@ function extractInner(svgText){
   svg.querySelectorAll("style, defs").forEach(n=>n.remove());
   // strip class attributes so our forced styling fully controls appearance
   svg.querySelectorAll("[class]").forEach(n=>n.removeAttribute("class"));
+  // explode multi-subpath paths into one <path> per subpath so every drawable
+  // element is exactly one segment (the strand engine relies on this 1:1 mapping)
+  svg.querySelectorAll("path").forEach(p=>{
+    const d = p.getAttribute("d") || "";
+    if(/m/.test(d.slice(1))) return;                 // relative subpath starts: leave intact
+    const parts = d.split(/(?=M)/).filter(s=>s.trim());
+    if(parts.length < 2) return;
+    parts.forEach(part=>{
+      const np = doc.createElementNS("http://www.w3.org/2000/svg", "path");
+      np.setAttribute("d", part.trim());
+      p.parentNode.insertBefore(np, p);
+    });
+    p.remove();
+  });
   return svg.innerHTML;
 }
 function decodeEmbedded(b64){ return extractInner(decodeURIComponent(escape(atob(b64)))); }
@@ -214,6 +233,8 @@ function tileSVG(key){
 let lines = [[]];
 let caret = { r:0, c:0 };
 const params = { ink:"#221f1f", sw:2.5, bg:"#f4f1ea", size:60 };
+const strandState = { on:false, seed:1, map:null, sig:"" };   // strand engine state (engine below)
+const DRAWABLES = "path,line,circle,ellipse,polyline,polygon,rect";
 
 function insertCell(cell){
   const row = lines[caret.r];
@@ -278,6 +299,7 @@ function render(){
     }
     sheet.appendChild(line);
   });
+  applyStrandColours();
 }
 
 // clicking free paper (e.g. right of a shorter line) puts the cursor on that grid square;
@@ -499,6 +521,109 @@ bindPoem("pGap",     el => poemOpts.gap = +el.value);
 bindPoem("pDensity", el => poemOpts.density = +el.value / 100);
 document.getElementById("pBorder").addEventListener("change", e => { poemOpts.border = e.target.checked; composePoem(); });
 document.getElementById("pSquare").addEventListener("change", e => { poemOpts.square = e.target.checked; composePoem(); });
+
+// ---- strand engine ----------------------------------------------------------
+// Pattern-tile curves end exactly on the shared registration grid, so lines from
+// adjacent tiles continue into each other. We fuse them into "strands": explode
+// tiles into single-subpath segments, map endpoints into global grid coords, and
+// union segments whose endpoints coincide. Strands spanning >= 2 cells get colours.
+// (strandState itself is declared with the document model — render() reads it early.)
+const TILE_GEO = {};   // key -> per-element {x1,y1,x2,y2} | {dot} | {loop} in artboard coords
+
+function tileGeometry(key){
+  if(TILE_GEO[key]) return TILE_GEO[key];
+  const host = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  host.setAttribute("viewBox", `0 0 ${VB} ${VB}`);
+  host.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
+  host.innerHTML = TILES[key] || "";
+  document.body.appendChild(host);
+  const geo = [];
+  host.querySelectorAll(DRAWABLES).forEach(el=>{
+    const tag = el.tagName.toLowerCase();
+    if(tag === "circle" || tag === "ellipse"){ geo.push({loop:true}); return; }
+    if(tag === "line"){
+      const x1=+el.getAttribute("x1"), y1=+el.getAttribute("y1");
+      const x2=+el.getAttribute("x2"), y2=+el.getAttribute("y2");
+      geo.push(x1===x2 && y1===y2 ? {dot:true} : {x1,y1,x2,y2});
+      return;
+    }
+    try{
+      const L = el.getTotalLength();
+      const a = el.getPointAtLength(0), b = el.getPointAtLength(L);
+      geo.push({x1:a.x, y1:a.y, x2:b.x, y2:b.y});
+    }catch(e){ geo.push({dot:true}); }
+  });
+  host.remove();
+  TILE_GEO[key] = geo;
+  return geo;
+}
+
+function computeStrands(){
+  const sig = strandState.seed + "|" + JSON.stringify(lines.map(r=>r.map(c=>c.blank?0:[c.key,c.rot||0])));
+  if(strandState.map && strandState.sig === sig) return strandState.map;
+  const segs = [];
+  const pointUse = new Map();
+  const parent = [];
+  const find = i => { while(parent[i]!==i){ parent[i]=parent[parent[i]]; i=parent[i]; } return i; };
+  const union = (a,b) => { a=find(a); b=find(b); if(a!==b) parent[b]=a; };
+  const COS=[1,0,-1,0], SIN=[0,1,0,-1], CTR=VB/2;
+  lines.forEach((row,r)=>row.forEach((cell,c)=>{
+    if(cell.blank || !TILES[cell.key]) return;
+    const rot=(cell.rot||0)%4;
+    tileGeometry(cell.key).forEach((g,ei)=>{
+      const id = segs.length;
+      parent.push(id);
+      segs.push({id, r, c, ei, skip: !!g.dot || !!g.loop});
+      if(g.dot || g.loop) return;
+      for(const [px,py] of [[g.x1,g.y1],[g.x2,g.y2]]){
+        const dx=px-CTR, dy=py-CTR;
+        const gx = c*PITCH - INSET + CTR + dx*COS[rot] - dy*SIN[rot];
+        const gy = r*PITCH - INSET + CTR + dx*SIN[rot] + dy*COS[rot];
+        const k = Math.round(gx*20) + "," + Math.round(gy*20);   // snap to 0.05
+        if(!pointUse.has(k)) pointUse.set(k, []);
+        pointUse.get(k).push(id);
+      }
+    });
+  }));
+  pointUse.forEach(ids => { if(ids.length === 2) union(ids[0], ids[1]); });
+  const groups = new Map();
+  segs.forEach(s => {
+    if(s.skip) return;
+    const root = find(s.id);
+    if(!groups.has(root)) groups.set(root, []);
+    groups.get(root).push(s);
+  });
+  const rnd = mulberry32(strandState.seed);
+  let hue = rnd()*360;
+  const colours = new Map();   // "r,c,ei" -> css colour
+  groups.forEach(g => {
+    const cells = new Set(g.map(s => s.r + "," + s.c));
+    if(cells.size < 2) return;                       // only lines that join across tiles
+    hue = (hue + 137.508) % 360;
+    const col = `hsl(${hue.toFixed(1)} 65% 45%)`;
+    g.forEach(s => colours.set(s.r + "," + s.c + "," + s.ei, col));
+  });
+  strandState.map = colours; strandState.sig = sig;
+  return colours;
+}
+
+function applyStrandColours(){
+  if(!strandState.on) return;
+  const colours = computeStrands();
+  document.querySelectorAll(".slot.filled").forEach(slot=>{
+    const base = slot.dataset.r + "," + slot.dataset.c + ",";
+    slot.querySelectorAll(DRAWABLES).forEach((el, ei)=>{
+      const col = colours.get(base + ei);
+      if(col) el.style.setProperty("stroke", col, "important");
+    });
+  });
+}
+
+document.getElementById("sOn").addEventListener("change", e => { strandState.on = e.target.checked; render(); });
+document.getElementById("sRecolour").addEventListener("click", () => {
+  strandState.seed = (Math.random()*0xffffffff)>>>0;
+  if(strandState.on) render();
+});
 
 // ---- typewriter animation ---------------------------------------------------
 const animOpts = { order: "typewriter", speed: 15 };
@@ -762,6 +887,7 @@ function buildSVG(){
   const ctr = VB/2;                                             // tile centre (26.25) for rotation
   const styleBlock = `<style>path,line,circle,polyline,polygon,rect,ellipse{fill:none;stroke:${params.ink};`
     + `stroke-width:${params.sw};stroke-linecap:round;stroke-linejoin:round}</style>`;
+  const colours = strandState.on ? computeStrands() : null;
   let body="";
   lines.forEach((row,ri)=>{ row.forEach((cell,ci)=>{
     if(cell.blank || !TILES[cell.key]) return;
@@ -769,10 +895,23 @@ function buildSVG(){
     // map tile-local (INSET,INSET) onto grid node (ci*PITCH, ri*PITCH)
     let tf=`translate(${ci*PITCH - INSET} ${ri*PITCH - INSET})`;
     if(rot) tf+=` rotate(${rot} ${ctr} ${ctr})`;
-    body+=`<g transform="${tf}">${TILES[cell.key]}</g>`;
+    body+=`<g transform="${tf}">${colours ? colouredMarkup(cell.key, ri, ci, colours) : TILES[cell.key]}</g>`;
   }); });
+  // inline style on the bg rect: the styleBlock's rect{fill:none} would override a fill attribute
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${vbW}" height="${vbH}">`
-    + styleBlock + `<rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="${params.bg}"/>${body}</svg>`;
+    + styleBlock + `<rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" style="fill:${params.bg}"/>${body}</svg>`;
+}
+// per-cell tile markup with per-element stroke overrides for strand colours
+function colouredMarkup(key, ri, ci, colours){
+  const host = document.createElement("div");
+  host.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg">${TILES[key]}</svg>`;
+  const svg = host.querySelector("svg");
+  const base = ri + "," + ci + ",";
+  svg.querySelectorAll(DRAWABLES).forEach((el, ei)=>{
+    const col = colours.get(base + ei);
+    if(col) el.setAttribute("style", "stroke:" + col);   // inline style beats the styleBlock rule
+  });
+  return svg.innerHTML;
 }
 function download(name,url){ const a=document.createElement("a"); a.href=url; a.download=name; a.click(); }
 function exportSVG(){ const blob=new Blob([buildSVG()],{type:"image/svg+xml"}); download("tiles-type.svg", URL.createObjectURL(blob)); }
