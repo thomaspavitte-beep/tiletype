@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52.5 52.5">
+  <defs>
+    <style>
+      .cls-1 {
+        stroke-miterlimit: 11;
+      }
+
+      .cls-1, .cls-2 {
+        fill: none;
+        stroke: #231f20;
+        stroke-linecap: round;
+        stroke-width: 2.5px;
+      }
+
+      .cls-2 {
+        stroke-miterlimit: 10;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <circle class="cls-2" cx="26.25" cy="26.55" r="12.5"/>
+      <circle class="cls-2" cx="26.25" cy="26.25" r="6.2"/>
+      <line class="cls-1" x1="26.25" y1="26.25" x2="26.25" y2="26.25"/>
+      <line class="cls-1" x1="38.75" y1="13.75" x2="38.75" y2="13.75"/>
+      <line class="cls-1" x1="13.75" y1="13.75" x2="13.75" y2="13.75"/>
+      <line class="cls-1" x1="38.75" y1="1.25" x2="38.75" y2="1.25"/>
+      <line class="cls-1" x1="13.75" y1="1.25" x2="13.75" y2="1.25"/>
+      <line class="cls-1" x1="38.75" y1="38.75" x2="38.75" y2="38.75"/>
+      <line class="cls-1" x1="13.75" y1="38.75" x2="13.75" y2="38.75"/>
+      <line class="cls-1" x1="1.25" y1="38.75" x2="1.25" y2="38.75"/>
+      <line class="cls-1" x1="1.25" y1="26.25" x2="1.25" y2="26.25"/>
+      <line class="cls-1" x1="1.25" y1="13.75" x2="1.25" y2="13.75"/>
+      <line class="cls-1" x1="51.25" y1="38.75" x2="51.25" y2="38.75"/>
+      <line class="cls-1" x1="51.25" y1="26.25" x2="51.25" y2="26.25"/>
+      <line class="cls-1" x1="51.25" y1="13.75" x2="51.25" y2="13.75"/>
+      <line class="cls-1" x1="38.75" y1="51.25" x2="38.75" y2="51.25"/>
+      <line class="cls-1" x1="13.75" y1="51.25" x2="13.75" y2="51.25"/>
+      <path class="cls-2" d="M7.45,1.25c0,3.5-2.8,6.2-6.2,6.2"/>
+      <path class="cls-2" d="M45.05,1.25c0,3.5,2.8,6.2,6.2,6.2"/>
+      <path class="cls-2" d="M7.45,51.25c0-3.5-2.8-6.2-6.2-6.2"/>
+      <path class="cls-2" d="M45.05,51.25c0-3.5,2.8-6.2,6.2-6.2"/>
+      <path class="cls-2" d="M20.05,51.25c0-3.5,2.8-6.2,6.2-6.2"/>
+      <path class="cls-2" d="M32.45,51.25c0-3.5-2.8-6.2-6.2-6.2"/>
+      <path class="cls-2" d="M32.45,1.25c0,3.5-2.8,6.2-6.2,6.2"/>
+      <path class="cls-2" d="M20.05,1.25c0,3.5,2.8,6.2,6.2,6.2"/>
+      <path class="cls-2" d="M51.25,32.45c-3.5,0-6.2-2.8-6.2-6.2"/>
+      <path class="cls-2" d="M51.25,19.95c-3.5,0-6.2,2.8-6.2,6.2"/>
+      <path class="cls-2" d="M1.25,19.95c3.5,0,6.2,2.8,6.2,6.2"/>
+      <path class="cls-2" d="M1.25,32.45c3.5,0,6.2-2.8,6.2-6.2"/>
+      <path class="cls-2" d="M38.75,44.95c3.5,0,6.2-2.8,6.2-6.2"/>
+      <path class="cls-2" d="M7.45,38.75c0,3.5,2.8,6.2,6.2,6.2"/>
+      <path class="cls-2" d="M13.75,7.45c-3.5,0-6.2,2.8-6.2,6.2"/>
+      <path class="cls-2" d="M1.25,19.95c3.5,0,6.2-2.8,6.2-6.2"/>
+      <path class="cls-2" d="M45.05,13.75c0,3.5,2.8,6.2,6.2,6.2"/>
+      <path class="cls-2" d="M51.25,32.45c-3.5,0-6.2,2.8-6.2,6.3"/>
+      <path class="cls-2" d="M7.55,38.75c0-3.5-2.8-6.3-6.2-6.3"/>
+      <path class="cls-2" d="M45.05,13.75c0-3.5-2.8-6.2-6.2-6.2"/>
+    </g>
+  </g>
+</svg>
