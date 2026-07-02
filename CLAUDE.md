@@ -90,6 +90,13 @@ path grid, not by the 840 artboard — see "How rendering works".
   (zero-length dots drawn as filled circles — canvas doesn't cap zero-length lines), recorded with
   a wall-clock `setInterval` (not rAF — keeps recording in background tabs). Future layers:
   hover-to-trace, fused single-path SVG export, GIF of the draw (needs colour quantizer).
+- **Ambient gallery mode** — the **Ambient** button (Compose section) starts a fullscreen auto-play
+  loop: compose a random poem (hue drifts +47° per cycle, tile size auto-fits the viewport), strand
+  **draw-in** (9 s), **hold** (6 s), **undraw** (4 s, `runStrandAnim({reverse})` — the shared
+  animator that also powers Draw/Stop), then the next poem, forever. Ambient forces strand colours
+  on, hides the panel/hint/cursor via `body.ambient` CSS, and tolerates `requestFullscreen`
+  rejection (runs in-page). **Any key, click, or leaving fullscreen exits**, restoring the user's
+  exact prior composition, size, hue, and checkbox state from a snapshot.
 - **Typewriter animation** — the composition reveals tile by tile (`revealOrder`: `typewriter`
   row-major, `letters first`, `patterns first`, or `random` — a seeded shuffle of every tile;
   speed slider = tiles/sec with per-tile jitter).

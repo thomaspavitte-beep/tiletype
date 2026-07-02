@@ -43,6 +43,8 @@
     animation:cursorPulse 1.1s ease-in-out infinite; }
   @keyframes cursorPulse { 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
   #hint { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); font-size:11px; opacity:.4; pointer-events:none; }
+  body.ambient #panel, body.ambient #hint, body.ambient .cursor-cell { display:none; }
+  body.ambient #stageWrap { cursor:none; }
   #status { font-size:11px; opacity:.5; margin-top:10px; }
 </style>
 </head>
@@ -65,7 +67,7 @@
 
   <div class="sec">
     <div class="lbl">Compose</div>
-    <div class="btns"><button id="clear">Clear</button><button id="sample">Sample</button><button id="squarify">Square</button></div>
+    <div class="btns"><button id="clear">Clear</button><button id="sample">Sample</button><button id="squarify">Square</button><button id="ambient">Ambient</button></div>
   </div>
 
   <div class="sec">
@@ -323,6 +325,7 @@ sheet.addEventListener("click",(e)=>{
 let focused = true;
 window.addEventListener("keydown",(e)=>{
   if(!ready) return;
+  if(ambient.active){ e.preventDefault(); stopAmbient(); return; }
   const t=e.target;
   if(t && (t.tagName==="INPUT"||t.tagName==="SELECT"||t.tagName==="TEXTAREA")) return;
   const k = e.key;
@@ -721,9 +724,64 @@ function slotElementMap(){
   return map;
 }
 
+// Shared trim-path animator. Forward: strands grow 0 -> 100%; reverse: the
+// reveal front retreats until the paper is blank. Returns {cancel}.
+function runStrandAnim({T, reverse = false, onDone}){
+  const chains = computeStrands().chains;
+  if(!chains.length){ if(onDone) onDone(); return {cancel(){}}; }
+  const map = slotElementMap();
+  const items = chainTimeline(chains, (Math.random()*0xffffffff)>>>0, T);
+  const applySeg = (sg, el, d) => {
+    if(sg.len <= 0){
+      const vis = d >= sg.offset ? "" : "hidden";
+      if(sg._v !== vis){ el.style.visibility = vis; sg._v = vis; }
+      return;
+    }
+    const local = d - sg.offset;
+    if(local <= 0){
+      if(sg._st !== "h"){ el.style.strokeDasharray = sg.len + " " + sg.len; el.style.strokeDashoffset = sg.len; sg._st = "h"; }
+    } else if(local >= sg.len){
+      if(sg._st !== "d"){ el.style.strokeDasharray = "none"; el.style.strokeDashoffset = "0"; sg._st = "d"; }
+    } else {
+      // trim-path: offset len->0 draws from the start; negative draws from the end
+      if(sg._st !== "p"){ el.style.strokeDasharray = sg.len + " " + sg.len; sg._st = "p"; }
+      el.style.strokeDashoffset = sg.rev ? -(sg.len - local) : (sg.len - local);
+    }
+  };
+  // initial state: forward starts blank, reverse starts fully drawn
+  items.forEach(({ch}) => ch.segs.forEach(sg => {
+    sg._st = undefined; sg._v = undefined;
+    const el = map[sg.r + "," + sg.c + "," + sg.ei]; if(!el) return;
+    applySeg(sg, el, reverse ? ch.total : 0);
+  }));
+  let raf = 0, cancelled = false;
+  const t0 = performance.now();
+  const tick = (now) => {
+    if(cancelled) return;
+    const t = now - t0;
+    let allDone = true;
+    items.forEach(it => {
+      if(it.done) return;
+      const p = (t - it.start)/it.dur;
+      if(p <= 0){ allDone = false; return; }
+      const eased = easeInOutCubic(Math.min(1, p));
+      const d = (reverse ? 1 - eased : eased) * it.ch.total;
+      it.ch.segs.forEach(sg => {
+        const el = map[sg.r + "," + sg.c + "," + sg.ei]; if(!el) return;
+        applySeg(sg, el, d);
+      });
+      if(p >= 1) it.done = true; else allDone = false;
+    });
+    if(allDone){ if(onDone) onDone(); return; }
+    raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+  return { cancel(){ cancelled = true; cancelAnimationFrame(raf); } };
+}
+
 function stopDraw(){
   if(!drawing) return;
-  cancelAnimationFrame(drawing.raf);
+  drawing.cancel();
   drawing = null;
   document.getElementById("sDraw").textContent = "Draw";
   render();
@@ -731,46 +789,11 @@ function stopDraw(){
 function startDraw(){
   if(drawing){ stopDraw(); return; }
   render();                                   // clean base state (colours applied if on)
-  const chains = computeStrands().chains;
-  if(!chains.length) return;
-  const map = slotElementMap();
-  const T = drawOpts.duration*1000;
-  const items = chainTimeline(chains, (Math.random()*0xffffffff)>>>0, T);
-  // hide everything up front
-  items.forEach(({ch}) => ch.segs.forEach(sg => {
-    const el = map[sg.r + "," + sg.c + "," + sg.ei]; if(!el) return;
-    sg.doneApplied = false;
-    if(sg.len <= 0){ el.style.visibility = "hidden"; }
-    else { el.style.strokeDasharray = sg.len + " " + sg.len; el.style.strokeDashoffset = sg.len; }
-  }));
   document.getElementById("sDraw").textContent = "Stop";
-  const t0 = performance.now();
-  const tick = (now) => {
-    const t = now - t0;
-    let allDone = true;
-    items.forEach(it => {
-      if(it.done) return;
-      const p = (t - it.start)/it.dur;
-      if(p <= 0){ allDone = false; return; }
-      const d = easeInOutCubic(Math.min(1, p)) * it.ch.total;
-      it.ch.segs.forEach(sg => {
-        const el = map[sg.r + "," + sg.c + "," + sg.ei]; if(!el) return;
-        if(sg.len <= 0){ if(d >= sg.offset) el.style.visibility = ""; return; }
-        const local = d - sg.offset;
-        if(local <= 0) return;
-        if(local >= sg.len){
-          if(!sg.doneApplied){ el.style.strokeDasharray = "none"; el.style.strokeDashoffset = "0"; sg.doneApplied = true; }
-          return;
-        }
-        // trim-path: offset len->0 draws from the start; negative draws from the end
-        el.style.strokeDashoffset = sg.rev ? -(sg.len - local) : (sg.len - local);
-      });
-      if(p >= 1) it.done = true; else allDone = false;
-    });
-    if(allDone){ drawing = null; document.getElementById("sDraw").textContent = "Draw"; render(); return; }
-    drawing.raf = requestAnimationFrame(tick);
-  };
-  drawing = { raf: requestAnimationFrame(tick) };
+  drawing = runStrandAnim({
+    T: drawOpts.duration*1000,
+    onDone: () => { drawing = null; document.getElementById("sDraw").textContent = "Draw"; render(); }
+  });
 }
 
 // canvas Path2D cache per tile key (artboard coordinates) for the WebM export
@@ -885,6 +908,94 @@ document.getElementById("sWebM").addEventListener("click", exportDrawWebM);
   const ap = () => { drawOpts.duration = +el.value; out.textContent = el.value + "s"; };
   el.addEventListener("input", ap); ap();
 })();
+
+// ---- ambient gallery mode ----------------------------------------------------
+// Fullscreen auto-play: a poem draws itself in, holds, dissolves, next poem.
+const ambient = { active:false, handle:null, timer:null, saved:null, phase:"", cycle:0 };
+const AMBIENT_T = { draw: 9000, hold: 6000, undraw: 4000 };
+
+function ambientFit(){
+  const wrap = document.getElementById("stageWrap");
+  const n = Math.max(lines.length, Math.max(1, ...lines.map(r=>r.length)));
+  params.size = Math.max(16, Math.floor(Math.min(wrap.clientWidth, wrap.clientHeight)*0.92/n));
+  const el = document.getElementById("size");
+  el.value = params.size;
+  document.getElementById("sizeV").textContent = params.size + "px";
+}
+function ambientCycle(){
+  if(!ambient.active) return;
+  ambient.phase = "compose"; ambient.cycle++;
+  strandState.hue = (strandState.hue + 47) % 360;              // new mood each cycle
+  document.getElementById("sHue").value = strandState.hue;
+  document.getElementById("sHueV").textContent = strandState.hue + "°";
+  let next = Math.floor(Math.random()*POEMS.length);
+  if(next === poemState.idx) next = (next + 1) % POEMS.length;
+  poemState.idx = next;
+  poemState.seed = (Math.random()*0xffffffff)>>>0;
+  composePoem();
+  ambientFit();
+  render();
+  ambient.phase = "draw";
+  ambient.handle = runStrandAnim({ T: AMBIENT_T.draw, onDone: () => {
+    if(!ambient.active) return;
+    ambient.phase = "hold";
+    ambient.timer = setTimeout(() => {
+      if(!ambient.active) return;
+      ambient.phase = "undraw";
+      ambient.handle = runStrandAnim({ T: AMBIENT_T.undraw, reverse: true, onDone: () => {
+        if(ambient.active) ambientCycle();
+      }});
+    }, AMBIENT_T.hold);
+  }});
+}
+function startAmbient(){
+  if(ambient.active){ stopAmbient(); return; }
+  if(drawing) stopDraw();
+  ambient.saved = {
+    lines: JSON.parse(JSON.stringify(lines)), caret: {...caret},
+    size: params.size, hue: strandState.hue, on: strandState.on,
+    poemIdx: poemState.idx, poemSeed: poemState.seed
+  };
+  strandState.on = true;
+  document.getElementById("sOn").checked = true;
+  ambient.active = true; ambient.cycle = 0;
+  document.body.classList.add("ambient");
+  try{
+    const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+    if(p && p.catch) p.catch(()=>{});          // no gesture / unsupported: run in-page
+  }catch(e){}
+  ambientCycle();
+}
+function stopAmbient(){
+  if(!ambient.active) return;
+  ambient.active = false; ambient.phase = "";
+  if(ambient.handle){ ambient.handle.cancel(); ambient.handle = null; }
+  if(ambient.timer){ clearTimeout(ambient.timer); ambient.timer = null; }
+  document.body.classList.remove("ambient");
+  if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+  const s = ambient.saved; ambient.saved = null;
+  if(s){
+    lines = s.lines; caret = s.caret;
+    params.size = s.size;
+    document.getElementById("size").value = s.size;
+    document.getElementById("sizeV").textContent = s.size + "px";
+    strandState.hue = s.hue;
+    document.getElementById("sHue").value = s.hue;
+    document.getElementById("sHueV").textContent = s.hue + "°";
+    strandState.on = s.on;
+    document.getElementById("sOn").checked = s.on;
+    poemState.idx = s.poemIdx; poemState.seed = s.poemSeed;
+  }
+  render();
+}
+document.getElementById("ambient").addEventListener("click", startAmbient);
+// any click or leaving fullscreen exits the gallery (capture runs before slot handlers)
+document.addEventListener("click", (e) => {
+  if(ambient.active){ e.preventDefault(); e.stopPropagation(); stopAmbient(); }
+}, true);
+document.addEventListener("fullscreenchange", () => {
+  if(ambient.active && !document.fullscreenElement) stopAmbient();
+});
 
 // ---- typewriter animation ---------------------------------------------------
 const animOpts = { order: "typewriter", speed: 15 };
