@@ -77,8 +77,19 @@ path grid, not by the 840 artboard — see "How rendering works".
   `currentColor!important` rule); SVG/PNG exports get per-element inline styles via
   `colouredMarkup()`. GIF/WebM animation exports remain ink-only (per-key raster cache can't hold
   per-cell colours). Gotcha: `strandState`/`DRAWABLES` are declared with the document model because
-  `render()` runs during control wire-up, before the engine block (TDZ otherwise). Future layers on
-  this engine: draw-on strand animation, hover-to-trace, fused single-path export.
+  `render()` runs during control wire-up, before the engine block (TDZ otherwise).
+- **Strand draw-on (trim path)** — `computeStrands()` also returns ordered **chains**: every group
+  is a simple chain/cycle (fusion only at exactly-2 points), walked end-to-end recording per segment
+  `{rev, len, offset}` (lengths cached in `tileGeometry`; dots len 0 pop in; circles trim around
+  themselves). All 100% of segments belong to exactly one chain. **Draw** button + **Draw time**
+  slider (2–20 s): seeded stagger, per-chain duration ∝ length, easeInOutCubic; per-frame the active
+  segment gets the dash trick — `dasharray = len len`, `dashoffset = len−local` forward or
+  `−(len−local)` when `rev` (draws from the segment's far end so the front flows continuously across
+  tile boundaries). Stop/finish → `render()` restores clean state. **Export WebM** (in Strands)
+  replays the same timeline on a canvas via cached per-key `Path2D`s + `setLineDash`/`lineDashOffset`
+  (zero-length dots drawn as filled circles — canvas doesn't cap zero-length lines), recorded with
+  a wall-clock `setInterval` (not rAF — keeps recording in background tabs). Future layers:
+  hover-to-trace, fused single-path SVG export, GIF of the draw (needs colour quantizer).
 - **Typewriter animation** — the composition reveals tile by tile (`revealOrder`: `typewriter`
   row-major, `letters first`, `patterns first`, or `random` — a seeded shuffle of every tile;
   speed slider = tiles/sec with per-tile jitter).

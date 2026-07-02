@@ -84,6 +84,8 @@
     <div class="row"><span>Hue</span><span><input id="sHue" type="range" min="0" max="359" step="1" value="220"
       style="background:linear-gradient(90deg,hsl(0 65% 50%),hsl(60 65% 50%),hsl(120 65% 50%),hsl(180 65% 50%),hsl(240 65% 50%),hsl(300 65% 50%),hsl(360 65% 50%));border-radius:6px"><span class="val" id="sHueV"></span></span></div>
     <div class="btns"><button id="sRecolour">Recolour</button></div>
+    <div class="row"><span>Draw time</span><span><input id="sDur" type="range" min="2" max="20" step="1" value="6"><span class="val" id="sDurV"></span></span></div>
+    <div class="btns"><button id="sDraw" class="primary">Draw</button><button id="sWebM">Export WebM</button></div>
   </div>
 
   <div class="sec">
@@ -545,18 +547,22 @@ function tileGeometry(key){
   const geo = [];
   host.querySelectorAll(DRAWABLES).forEach(el=>{
     const tag = el.tagName.toLowerCase();
-    if(tag === "circle" || tag === "ellipse"){ geo.push({loop:true}); return; }
+    if(tag === "circle" || tag === "ellipse"){
+      let L = 0; try{ L = el.getTotalLength(); }catch(e){}
+      geo.push({loop:true, len:L});
+      return;
+    }
     if(tag === "line"){
       const x1=+el.getAttribute("x1"), y1=+el.getAttribute("y1");
       const x2=+el.getAttribute("x2"), y2=+el.getAttribute("y2");
-      geo.push(x1===x2 && y1===y2 ? {dot:true} : {x1,y1,x2,y2});
+      geo.push(x1===x2 && y1===y2 ? {dot:true, len:0} : {x1,y1,x2,y2, len:Math.hypot(x2-x1,y2-y1)});
       return;
     }
     try{
       const L = el.getTotalLength();
       const a = el.getPointAtLength(0), b = el.getPointAtLength(L);
-      geo.push({x1:a.x, y1:a.y, x2:b.x, y2:b.y});
-    }catch(e){ geo.push({dot:true}); }
+      geo.push({x1:a.x, y1:a.y, x2:b.x, y2:b.y, len:L});
+    }catch(e){ geo.push({dot:true, len:0}); }
   });
   host.remove();
   TILE_GEO[key] = geo;
@@ -565,7 +571,7 @@ function tileGeometry(key){
 
 function computeStrands(){
   const sig = strandState.seed + "|" + strandState.hue + "|" + JSON.stringify(lines.map(r=>r.map(c=>c.blank?0:[c.key,c.rot||0])));
-  if(strandState.map && strandState.sig === sig) return strandState.map;
+  if(strandState.data && strandState.sig === sig) return strandState.data;
   const segs = [];
   const pointUse = new Map();
   const parent = [];
@@ -578,16 +584,18 @@ function computeStrands(){
     tileGeometry(cell.key).forEach((g,ei)=>{
       const id = segs.length;
       parent.push(id);
-      segs.push({id, r, c, ei, skip: !!g.dot || !!g.loop});
+      const rec = {id, r, c, ei, len:g.len||0, dot:!!g.dot, loop:!!g.loop, skip: !!g.dot || !!g.loop, k1:null, k2:null};
+      segs.push(rec);
       if(g.dot || g.loop) return;
-      for(const [px,py] of [[g.x1,g.y1],[g.x2,g.y2]]){
+      [[g.x1,g.y1],[g.x2,g.y2]].forEach(([px,py], end)=>{
         const dx=px-CTR, dy=py-CTR;
         const gx = c*PITCH - INSET + CTR + dx*COS[rot] - dy*SIN[rot];
         const gy = r*PITCH - INSET + CTR + dx*SIN[rot] + dy*COS[rot];
         const k = Math.round(gx*20) + "," + Math.round(gy*20);   // snap to 0.05
+        if(end===0) rec.k1=k; else rec.k2=k;
         if(!pointUse.has(k)) pointUse.set(k, []);
         pointUse.get(k).push(id);
-      }
+      });
     });
   }));
   pointUse.forEach(ids => { if(ids.length === 2) union(ids[0], ids[1]); });
@@ -616,13 +624,52 @@ function computeStrands(){
     const col = `hsl(${h.toFixed(1)} ${Math.min(75,s).toFixed(0)}% ${Math.max(34,l).toFixed(0)}%)`;
     g.forEach(seg => colours.set(seg.r + "," + seg.c + "," + seg.ei, col));
   });
-  strandState.map = colours; strandState.sig = sig;
-  return colours;
+  // ---- ordered chains (for the trim-path draw) ------------------------------
+  // Every group is a simple chain or cycle (we only fuse at exactly-2 points),
+  // so walk it end-to-end recording direction + cumulative offset per segment.
+  const nextAt = (k, fromId) => {
+    const ids = pointUse.get(k);
+    if(!ids || ids.length !== 2) return -1;
+    return ids[0] === fromId ? ids[1] : ids[0];
+  };
+  const chains = [];
+  groups.forEach(g => {
+    // start at an open end (a point that doesn't continue); cycles start anywhere
+    let startSeg = null, startKey = null;
+    outer: for(const s of g){
+      for(const kk of [s.k1, s.k2]){
+        const ids = pointUse.get(kk) || [];
+        if(ids.length !== 2){ startSeg = s; startKey = kk; break outer; }
+      }
+    }
+    if(!startSeg){ startSeg = g[0]; startKey = g[0].k1; }
+    const ordered = [];
+    let offset = 0, cur = startSeg, entryKey = startKey;
+    const seen = new Set();
+    while(cur && !seen.has(cur.id)){
+      seen.add(cur.id);
+      const rev = (entryKey === cur.k2 && cur.k1 !== cur.k2);
+      ordered.push({r:cur.r, c:cur.c, ei:cur.ei, rev, len:cur.len, offset});
+      offset += cur.len;
+      const exitKey = rev ? cur.k1 : cur.k2;
+      const nid = nextAt(exitKey, cur.id);
+      cur = (nid >= 0 && !seen.has(nid)) ? segs[nid] : null;
+      entryKey = exitKey;
+    }
+    chains.push({segs: ordered, total: offset});
+  });
+  // dots and circles/loops draw too: dots pop in, loops trim around themselves
+  segs.forEach(s => {
+    if(!s.skip) return;
+    chains.push({segs:[{r:s.r, c:s.c, ei:s.ei, rev:false, len:s.len, offset:0, dot:s.dot}], total:s.len});
+  });
+  strandState.data = { colours, chains }; strandState.sig = sig;
+  return strandState.data;
 }
 
 function applyStrandColours(){
   if(!strandState.on) return;
-  const colours = computeStrands();
+  const colours = computeStrands().colours;
   document.querySelectorAll(".slot.filled").forEach(slot=>{
     const base = slot.dataset.r + "," + slot.dataset.c + ",";
     slot.querySelectorAll(DRAWABLES).forEach((el, ei)=>{
@@ -642,6 +689,200 @@ document.getElementById("sRecolour").addEventListener("click", () => {
   const ap = () => { strandState.hue = +el.value; out.textContent = el.value + "°";
     out.style.color = `hsl(${el.value} 65% 55%)`;
     if(strandState.on) render(); };
+  el.addEventListener("input", ap); ap();
+})();
+
+// ---- strand draw-on animation (trim path across tiles) ----------------------
+const drawOpts = { duration: 6 };
+let drawing = null;
+
+function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2; }
+
+// stagger: chains start within the first 30% of the timeline and draw for a
+// duration proportional to their length, so long runs keep snaking after short
+// ones pop — every chain eases 0 -> 100%.
+function chainTimeline(chains, seed, T){
+  const rnd = mulberry32(seed);
+  const maxLen = Math.max(1, ...chains.map(ch => ch.total));
+  return chains.map(ch => ({
+    ch,
+    start: rnd()*0.3*T,
+    dur: 0.15*T + 0.55*T*(ch.total/maxLen),
+    done: false
+  }));
+}
+
+function slotElementMap(){
+  const map = {};
+  document.querySelectorAll(".slot.filled").forEach(slot=>{
+    const base = slot.dataset.r + "," + slot.dataset.c + ",";
+    slot.querySelectorAll(DRAWABLES).forEach((el, ei)=>{ map[base + ei] = el; });
+  });
+  return map;
+}
+
+function stopDraw(){
+  if(!drawing) return;
+  cancelAnimationFrame(drawing.raf);
+  drawing = null;
+  document.getElementById("sDraw").textContent = "Draw";
+  render();
+}
+function startDraw(){
+  if(drawing){ stopDraw(); return; }
+  render();                                   // clean base state (colours applied if on)
+  const chains = computeStrands().chains;
+  if(!chains.length) return;
+  const map = slotElementMap();
+  const T = drawOpts.duration*1000;
+  const items = chainTimeline(chains, (Math.random()*0xffffffff)>>>0, T);
+  // hide everything up front
+  items.forEach(({ch}) => ch.segs.forEach(sg => {
+    const el = map[sg.r + "," + sg.c + "," + sg.ei]; if(!el) return;
+    sg.doneApplied = false;
+    if(sg.len <= 0){ el.style.visibility = "hidden"; }
+    else { el.style.strokeDasharray = sg.len + " " + sg.len; el.style.strokeDashoffset = sg.len; }
+  }));
+  document.getElementById("sDraw").textContent = "Stop";
+  const t0 = performance.now();
+  const tick = (now) => {
+    const t = now - t0;
+    let allDone = true;
+    items.forEach(it => {
+      if(it.done) return;
+      const p = (t - it.start)/it.dur;
+      if(p <= 0){ allDone = false; return; }
+      const d = easeInOutCubic(Math.min(1, p)) * it.ch.total;
+      it.ch.segs.forEach(sg => {
+        const el = map[sg.r + "," + sg.c + "," + sg.ei]; if(!el) return;
+        if(sg.len <= 0){ if(d >= sg.offset) el.style.visibility = ""; return; }
+        const local = d - sg.offset;
+        if(local <= 0) return;
+        if(local >= sg.len){
+          if(!sg.doneApplied){ el.style.strokeDasharray = "none"; el.style.strokeDashoffset = "0"; sg.doneApplied = true; }
+          return;
+        }
+        // trim-path: offset len->0 draws from the start; negative draws from the end
+        el.style.strokeDashoffset = sg.rev ? -(sg.len - local) : (sg.len - local);
+      });
+      if(p >= 1) it.done = true; else allDone = false;
+    });
+    if(allDone){ drawing = null; document.getElementById("sDraw").textContent = "Draw"; render(); return; }
+    drawing.raf = requestAnimationFrame(tick);
+  };
+  drawing = { raf: requestAnimationFrame(tick) };
+}
+
+// canvas Path2D cache per tile key (artboard coordinates) for the WebM export
+const TILE_P2D = {};
+function tilePaths(key){
+  if(TILE_P2D[key]) return TILE_P2D[key];
+  const host = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  host.innerHTML = TILES[key] || "";
+  document.body.appendChild(host);
+  const arr = [...host.querySelectorAll(DRAWABLES)].map(el=>{
+    const tag = el.tagName.toLowerCase();
+    if(tag === "path") return { p: new Path2D(el.getAttribute("d")||"") };
+    if(tag === "line"){
+      const x1=+el.getAttribute("x1"), y1=+el.getAttribute("y1");
+      const x2=+el.getAttribute("x2"), y2=+el.getAttribute("y2");
+      if(x1===x2 && y1===y2) return { dot:[x1,y1] };       // canvas won't cap zero-length lines
+      const p = new Path2D(); p.moveTo(x1,y1); p.lineTo(x2,y2); return { p };
+    }
+    if(tag === "circle" || tag === "ellipse"){
+      const p = new Path2D();
+      p.arc(+el.getAttribute("cx"), +el.getAttribute("cy"), +el.getAttribute("r")||0, 0, Math.PI*2);
+      return { p };
+    }
+    return { p: new Path2D() };
+  });
+  host.remove();
+  TILE_P2D[key] = arr;
+  return arr;
+}
+
+async function exportDrawWebM(){
+  if(!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream){
+    statusEl().textContent = "webm not supported in this browser"; return;
+  }
+  const { colours, chains } = computeStrands();
+  if(!chains.length) return;
+  const prev = statusEl().textContent;
+  setBusy(true);
+  try{
+    const { cols, rows } = gridDims();
+    const cellPx = Math.max(16, Math.min(64, Math.floor(960/cols)));
+    const scale = cellPx/PITCH, CTR = VB/2;
+    const w = cols*cellPx, h = rows*cellPx;
+    const cv2 = document.createElement("canvas"); cv2.width = w; cv2.height = h;
+    const g = cv2.getContext("2d");
+    const T = drawOpts.duration*1000;
+    const items = chainTimeline(chains, (Math.random()*0xffffffff)>>>0, T);
+    const inkFor = sg => (strandState.on && colours.get(sg.r + "," + sg.c + "," + sg.ei)) || params.ink;
+    const frame = (t) => {
+      g.setTransform(1,0,0,1,0,0);
+      g.fillStyle = params.bg; g.fillRect(0,0,w,h);
+      g.lineCap = "round"; g.lineJoin = "round";
+      items.forEach(it => {
+        const p = (t - it.start)/it.dur;
+        if(p <= 0) return;
+        const d = easeInOutCubic(Math.min(1, p)) * it.ch.total;
+        it.ch.segs.forEach(sg => {
+          if(sg.len > 0 && d - sg.offset <= 0) return;
+          const cellRec = lines[sg.r][sg.c];
+          const el = tilePaths(cellRec.key)[sg.ei]; if(!el) return;
+          g.save();
+          g.scale(scale, scale);
+          g.translate(sg.c*PITCH - INSET, sg.r*PITCH - INSET);
+          g.translate(CTR, CTR); g.rotate((cellRec.rot||0)*Math.PI/2); g.translate(-CTR, -CTR);
+          if(el.dot){
+            g.fillStyle = inkFor(sg);
+            g.beginPath(); g.arc(el.dot[0], el.dot[1], params.sw/2, 0, Math.PI*2); g.fill();
+          } else {
+            const local = d - sg.offset;
+            if(local < sg.len){
+              g.setLineDash([sg.len, sg.len]);
+              g.lineDashOffset = sg.rev ? -(sg.len - local) : (sg.len - local);
+            } else g.setLineDash([]);
+            g.lineWidth = params.sw;
+            g.strokeStyle = inkFor(sg);
+            g.stroke(el.p);
+            g.setLineDash([]);
+          }
+          g.restore();
+        });
+      });
+    };
+    const stream = cv2.captureStream(30);
+    const rec = new MediaRecorder(stream, { mimeType: "video/webm" });
+    const chunks = [];
+    rec.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+    const stopped = new Promise(res => { rec.onstop = res; });
+    rec.start();
+    statusEl().textContent = "recording draw…";
+    await new Promise(res => {
+      // wall-clock interval (not rAF): keeps recording even if the tab is backgrounded
+      const t0 = performance.now();
+      const iv = setInterval(() => {
+        const t = performance.now() - t0;
+        frame(t);
+        if(t >= T + 1200){ clearInterval(iv); res(); }  // hold the finished piece ~1.2s
+      }, 33);
+    });
+    rec.stop();
+    await stopped;
+    download("tiles-draw.webm", URL.createObjectURL(new Blob(chunks, {type:"video/webm"})));
+  } finally {
+    statusEl().textContent = prev;
+    setBusy(false);
+  }
+}
+
+document.getElementById("sDraw").addEventListener("click", startDraw);
+document.getElementById("sWebM").addEventListener("click", exportDrawWebM);
+(function(){
+  const el = document.getElementById("sDur"), out = document.getElementById("sDurV");
+  const ap = () => { drawOpts.duration = +el.value; out.textContent = el.value + "s"; };
   el.addEventListener("input", ap); ap();
 })();
 
@@ -804,7 +1045,7 @@ function indexify(imgData, pi, pb){
 
 function gridDims(){ return { cols: Math.max(1, ...lines.map(r=>r.length)), rows: lines.length }; }
 const statusEl = () => document.getElementById("status");
-function setBusy(b){ ["expGIF","expWebM","play"].forEach(id => document.getElementById(id).disabled = b); }
+function setBusy(b){ ["expGIF","expWebM","play","sDraw","sWebM"].forEach(id => document.getElementById(id).disabled = b); }
 
 async function exportGIF(){
   const order = revealOrder(animOpts.order, (Math.random()*0xffffffff)>>>0);
@@ -907,7 +1148,7 @@ function buildSVG(){
   const ctr = VB/2;                                             // tile centre (26.25) for rotation
   const styleBlock = `<style>path,line,circle,polyline,polygon,rect,ellipse{fill:none;stroke:${params.ink};`
     + `stroke-width:${params.sw};stroke-linecap:round;stroke-linejoin:round}</style>`;
-  const colours = strandState.on ? computeStrands() : null;
+  const colours = strandState.on ? computeStrands().colours : null;
   let body="";
   lines.forEach((row,ri)=>{ row.forEach((cell,ci)=>{
     if(cell.blank || !TILES[cell.key]) return;
