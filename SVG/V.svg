@@ -1,63 +1,50 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52.5 52.5">
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 840">
   <defs>
     <style>
       .cls-1 {
-        stroke-miterlimit: 11;
-      }
-
-      .cls-1, .cls-2 {
         fill: none;
         stroke: #221f1f;
         stroke-linecap: round;
-        stroke-width: 2.5px;
-      }
-
-      .cls-2 {
         stroke-linejoin: round;
+        stroke-width: 40px;
       }
     </style>
   </defs>
   <g id="Layer_1-2" data-name="Layer 1">
     <g>
-      <path class="cls-2" d="M26.25,45.05c-10.4,0-18.8-8.4-18.8-18.8V7.45h6.2c3.5,0,6.2,2.8,6.2,6.2v12.6c0,3.5,2.8,6.3,6.3,6.3h6.2V13.75c0-3.5,2.8-6.2,6.2-6.2h6.2v37.5h-18.5"/>
-      <line class="cls-1" x1="13.75" y1="1.25" x2="13.75" y2="1.25"/>
-      <line class="cls-1" x1="13.75" y1="1.25" x2="13.75" y2="1.25"/>
-      <line class="cls-1" x1="26.25" y1="1.25" x2="26.25" y2="1.25"/>
-      <line class="cls-1" x1="26.25" y1="1.25" x2="26.25" y2="1.25"/>
-      <line class="cls-1" x1="26.25" y1="13.75" x2="26.25" y2="13.75"/>
-      <line class="cls-1" x1="26.25" y1="13.75" x2="26.25" y2="13.75"/>
-      <line class="cls-1" x1="26.25" y1="20.05" x2="26.25" y2="20.05"/>
-      <line class="cls-1" x1="26.25" y1="20.05" x2="26.25" y2="20.05"/>
-      <line class="cls-1" x1="26.25" y1="26.25" x2="26.25" y2="26.25"/>
-      <line class="cls-1" x1="26.25" y1="26.25" x2="26.25" y2="26.25"/>
-      <line class="cls-1" x1="7.45" y1="1.25" x2="7.45" y2="1.25"/>
-      <line class="cls-1" x1="7.45" y1="1.25" x2="7.45" y2="1.25"/>
-      <line class="cls-1" x1="45.05" y1="1.25" x2="45.05" y2="1.25"/>
-      <line class="cls-1" x1="45.05" y1="1.25" x2="45.05" y2="1.25"/>
-      <line class="cls-1" x1="38.75" y1="1.25" x2="38.75" y2="1.25"/>
-      <line class="cls-1" x1="38.75" y1="1.25" x2="38.75" y2="1.25"/>
-      <line class="cls-1" x1="45.05" y1="51.25" x2="45.05" y2="51.25"/>
-      <line class="cls-1" x1="38.75" y1="51.25" x2="38.75" y2="51.25"/>
-      <line class="cls-1" x1="32.45" y1="51.25" x2="32.45" y2="51.25"/>
-      <line class="cls-1" x1="26.25" y1="51.25" x2="26.25" y2="51.25"/>
-      <line class="cls-1" x1="20.05" y1="51.25" x2="20.05" y2="51.25"/>
-      <line class="cls-1" x1="13.75" y1="51.25" x2="13.75" y2="51.25"/>
-      <line class="cls-1" x1="1.25" y1="38.75" x2="1.25" y2="38.75"/>
-      <line class="cls-1" x1="1.25" y1="32.45" x2="1.25" y2="32.45"/>
-      <line class="cls-1" x1="1.25" y1="26.25" x2="1.25" y2="26.25"/>
-      <line class="cls-1" x1="1.25" y1="20.05" x2="1.25" y2="20.05"/>
-      <line class="cls-1" x1="1.25" y1="13.75" x2="1.25" y2="13.75"/>
-      <line class="cls-1" x1="1.25" y1="7.45" x2="1.25" y2="7.45"/>
-      <line class="cls-1" x1="51.25" y1="38.75" x2="51.25" y2="38.75"/>
-      <line class="cls-1" x1="51.25" y1="32.45" x2="51.25" y2="32.45"/>
-      <line class="cls-1" x1="51.25" y1="26.25" x2="51.25" y2="26.25"/>
-      <line class="cls-1" x1="51.25" y1="20.05" x2="51.25" y2="20.05"/>
-      <line class="cls-1" x1="51.25" y1="13.75" x2="51.25" y2="13.75"/>
-      <path class="cls-1" d="M7.45,51.25c0-3.5,2.8-6.2,6.2-6.2"/>
-      <path class="cls-1" d="M7.45,38.75c0,3.5-2.8,6.2-6.2,6.2"/>
-      <path class="cls-1" d="M32.45,1.25c0,3.5-2.8,6.2-6.2,6.2"/>
-      <path class="cls-1" d="M26.25,7.45c-3.5,0-6.2-2.8-6.2-6.2"/>
+      <path class="cls-1" d="M220,720c-55.27,0-100,44.73-100,100"/>
+      <path class="cls-1" d="M120,420c0,165.82,134.18,300,300,300h300V120h-100c-55.27,0-100,44.73-100,100v300h-100c-55.27,0-100-44.73-100-100v-200c0-55.27-44.73-100-100-100h-100v300Z"/>
+      <path class="cls-1" d="M20,720c55.27,0,100-44.73,100-100"/>
+      <line class="cls-1" x1="820" y1="220" x2="820" y2="220"/>
+      <line class="cls-1" x1="820" y1="120" x2="820" y2="120"/>
+      <line class="cls-1" x1="820" y1="720" x2="820" y2="720"/>
+      <line class="cls-1" x1="820" y1="320" x2="820" y2="320"/>
+      <line class="cls-1" x1="820" y1="420" x2="820" y2="420"/>
+      <line class="cls-1" x1="820" y1="520" x2="820" y2="520"/>
+      <line class="cls-1" x1="820" y1="620" x2="820" y2="620"/>
+      <line class="cls-1" x1="20" y1="220" x2="20" y2="220"/>
+      <line class="cls-1" x1="20" y1="120" x2="20" y2="120"/>
+      <line class="cls-1" x1="20" y1="320" x2="20" y2="320"/>
+      <line class="cls-1" x1="20" y1="420" x2="20" y2="420"/>
+      <line class="cls-1" x1="20" y1="520" x2="20" y2="520"/>
+      <line class="cls-1" x1="20" y1="620" x2="20" y2="620"/>
+      <path class="cls-1" d="M320,20c0,55.27,44.73,100,100,100"/>
+      <path class="cls-1" d="M420,120c55.27,0,100-44.73,100-100"/>
+      <line class="cls-1" x1="220" y1="20" x2="220" y2="20"/>
+      <line class="cls-1" x1="120" y1="20" x2="120" y2="20"/>
+      <line class="cls-1" x1="720" y1="20" x2="720" y2="20"/>
+      <line class="cls-1" x1="420" y1="20" x2="420" y2="20"/>
+      <line class="cls-1" x1="420" y1="220" x2="420" y2="220"/>
+      <line class="cls-1" x1="420" y1="320" x2="420" y2="320"/>
+      <line class="cls-1" x1="420" y1="420" x2="420" y2="420"/>
+      <line class="cls-1" x1="620" y1="20" x2="620" y2="20"/>
+      <line class="cls-1" x1="220" y1="820" x2="220" y2="820"/>
+      <line class="cls-1" x1="320" y1="820" x2="320" y2="820"/>
+      <line class="cls-1" x1="420" y1="820" x2="420" y2="820"/>
+      <line class="cls-1" x1="620" y1="820" x2="620" y2="820"/>
+      <line class="cls-1" x1="720" y1="820" x2="720" y2="820"/>
+      <line class="cls-1" x1="520" y1="820" x2="520" y2="820"/>
     </g>
   </g>
 </svg>

@@ -11,29 +11,29 @@ the other experiments in the parent `Tiles/` project.
 - `index.html` — the entire app (one self-contained file: HTML + CSS + inline JS,
   renders tiles as inline SVG). No build step, no dependencies. Lives at the repo root so
   GitHub Pages serves it directly.
-- `SVG/` — the font: 33 tile SVGs. `A.svg`–`Z.svg` and `1.svg`–`7.svg`. These are the source of
+- `SVG/` — the font: 36 tile SVGs. `A.svg`–`Z.svg` and `0.svg`–`9.svg` (patterns). These are the source of
   truth for the artwork.
 - `Open Typesetter.command` — double-click launcher (macOS). Serves this folder locally and opens
   the app in the browser so the font can be edited live (see "Running").
 
 ## The tile font (important geometry)
 Every tile SVG is:
-- `viewBox="0 0 52.5 52.5"` — a square artboard.
-- **Pure stroke** — `fill:none`, `stroke:#221f1f` (letters) / `#231f20` (numbers), `stroke-width:2.5`,
+- `viewBox="0 0 840 840"` — a square artboard (clean integer coordinates).
+- **Pure stroke** — `fill:none`, `stroke:#221f1f`, `stroke-width:40`,
   round caps. Shapes are `<path>` / `<line>` / `<circle>`. The zero-length `<line>`s are the
   round-cap **registration dots**.
-- Drawn on a **50×50 registration grid inset 1.25 from the artboard edge**: the connection/path
-  points sit at coordinates **1.25 … 51.25** on both axes (letter bodies are interior, ~7.45 … 45.05).
+- Drawn on an **800×800 registration grid inset 20 from the artboard edge**: the connection/path
+  points sit at coordinates **20 … 820** on clean 100-unit steps.
 
-**This 1.25 inset / 50-unit repeat is the key fact the app depends on.** Tiles are aligned by this
-path grid, not by the 52.5 artboard — see "How rendering works".
+**This 20 inset / 800-unit repeat is the key fact the app depends on.** Tiles are aligned by this
+path grid, not by the 840 artboard — see "How rendering works".
 
 ## How the app works
 - **Font loading** — on startup the app tries to **fetch** each SVG from `SVG/*.svg` (cache-busted,
   so edits show on refresh). If the page isn't served from `LETTERS/` (e.g. opened as a `file://`),
   it falls back to a **base64 copy embedded in the HTML** so it never comes up blank. The status
-  line shows `33 live` vs `33 embedded`.
-- **Key → tile map** — `a`–`z` → letters, `1`–`7` → numbers (lowercase; digits 8/9/0 unused).
+  line shows `36 live` vs `36 embedded`.
+- **Key → tile map** — `a`–`z` → letters, `0`–`9` → pattern tiles (lowercase).
 - **Recolour / restroke** — each tile is rendered inside an `<svg>` with an injected scoped style
   that forces `stroke:currentColor` and `stroke-width:var(--sw)`, so the panel controls (ink colour,
   stroke width) restyle the baked-in font live.
@@ -50,7 +50,7 @@ path grid, not by the 52.5 artboard — see "How rendering works".
   seeded layout engine (`composePoem` + `mulberry32`). **New poem** picks a poem; **Reshuffle**
   re-scatters the same poem with a new seed. Lines get random indents (organic, not left-aligned),
   and **every empty cell** (word gaps, indents, padding, spacer rows, inner border ring) is filled
-  with a randomly-rotated **pattern tile** (`1`–`7`) with probability = Pattern density (default
+  with a randomly-rotated **pattern tile** (`0`–`9`) with probability = Pattern density (default
   100% — a solid field of pattern with the words embedded; lower it for airier layouts). An optional
   **border** wraps the padded rectangle in a solid ring of pattern tiles. Sliders: Indent (0–6),
   Word gap (1–3), Pattern density (0–100%); Border checkbox; **Square canvas** checkbox (default on)
@@ -64,7 +64,7 @@ path grid, not by the 52.5 artboard — see "How rendering works".
 - **Strands** — the engine fuses lines that continue across tile boundaries. `extractInner` explodes
   multi-subpath paths so 1 element = 1 segment; `tileGeometry(key)` caches each segment's endpoints
   (via `getPointAtLength` in a hidden svg); `computeStrands()` maps endpoints to global grid coords
-  (same rotate-about-26.25 math as export), snaps to 0.05, and union-finds segments whose endpoints
+  (same rotate-about-centre math as export), snaps to 0.05, and union-finds segments whose endpoints
   coincide at points shared by exactly 2 segments (junctions >2 are left uncut; dots and
   circles/loops are excluded). Strands spanning **≥ 2 cells** get seeded golden-angle `hsl` colours;
   single-cell strands and dots stay ink — letter *bodies* remain readable, though letters' small
@@ -81,22 +81,22 @@ path grid, not by the 52.5 artboard — see "How rendering works".
   speed slider = tiles/sec with per-tile jitter).
   **Play** veils tile slots (`.veiled`) and un-veils on a timer, moving the cursor square with the
   reveal front. **Export GIF** re-renders the reveal to an offscreen canvas — each tile is
-  pre-rasterized at the **full 52.5 artboard** and drawn at `cell centre` (artboard centre =
-  registration centre, so the 1.25 bleed overlaps neighbours exactly as on screen) — and encodes a
+  pre-rasterized at the **full 840 artboard** and drawn at `cell centre` (artboard centre =
+  registration centre, so the 20-unit bleed overlaps neighbours exactly as on screen) — and encodes a
   looping GIF via an **inline GIF89a/LZW encoder** (no dependency; 32-colour ink→bg ramp palette,
   ≤120 frames, ~640px wide, long hold on the final frame). **Export WebM** records the same frame
   loop in real time via `canvas.captureStream` + `MediaRecorder` at higher resolution.
 
 ## How rendering works (the alignment decision)
-Naively laying tiles flush by the 52.5 artboard puts adjacent path points **2.5 apart** (the 1.25
+Naively laying tiles flush by the 840 artboard puts adjacent path points **40 apart** (the 20
 bleed on each side) — a visible misregistration. Instead:
 
-- **On-screen:** each tile is rendered with `viewBox="1.25 1.25 50 50"` (constants `INSET=1.25`,
-  `PITCH=50`) — the coordinate system is cropped to the registration grid, so adjacent tile
+- **On-screen:** each tile is rendered with `viewBox="20 20 800 800"` (constants `INSET=20`,
+  `PITCH=800`) — the coordinate system is cropped to the registration grid, so adjacent tile
   boundaries fall exactly on the path points and neighbouring tiles' vectors coincide. `.slot svg`
   uses `overflow:visible` so edge dots render fully (they land on the neighbour's identical dot).
 - **Export:** the same grid — overall `viewBox` has a small `INSET` margin, and each tile group is
-  `translate(col*PITCH - INSET, row*PITCH - INSET)` with rotation about the tile centre `26.25`.
+  `translate(col*PITCH - INSET, row*PITCH - INSET)` with rotation about the tile centre `420`.
 
 Because alignment is by the **path centreline**, it is **independent of stroke width** — changing the
 Width control never shifts registration (only the visible line weight). The stroke also **scales with
@@ -119,4 +119,4 @@ When served via the launcher this is unnecessary — the live fetch always refle
 - Keep it a **single self-contained `index.html`** — no build tooling, no external libs.
 - Don't hard-code the 1.25/50 numbers ad hoc — use the `INSET` / `PITCH` constants.
 - Preserve the **fetch-first, embedded-fallback** loading so the app never renders blank.
-- New tiles must follow the font's geometry (52.5 artboard, 1.25 registration inset) to stay aligned.
+- New tiles must follow the font's geometry (840 artboard, 20 registration inset) to stay aligned.

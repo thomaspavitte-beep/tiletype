@@ -6,7 +6,7 @@ together into one continuous piece. Generate little poems, scatter them organica
 pattern field, animate the whole thing like a typewriter, and export print-ready SVG/PNG or a
 looping GIF.
 
-The whole app is a **single `index.html`** — no build step, no dependencies. The font (33 stroke-only
+The whole app is a **single `index.html`** — no build step, no dependencies. The font (36 stroke-only
 SVG tiles) is fetched live from `SVG/`, with a base64 copy embedded in the HTML as a fallback so the
 page also works opened straight from disk.
 
@@ -27,7 +27,7 @@ macOS: just double-click `Open Typesetter.command` — it serves the folder and 
 | Keys | |
 |---|---|
 | `a`–`z` | place a letter tile |
-| `1`–`7` | place a pattern tile |
+| `0`–`9` | place a pattern tile |
 | `Space` / `Enter` / `Backspace` | blank cell / new line / delete |
 | arrows | move the cursor square |
 | click a tile | rotate it 90° |
@@ -45,9 +45,9 @@ macOS: just double-click `Open Typesetter.command` — it serves the folder and 
 
 ## The font
 
-Each tile is a `52.5 × 52.5` artboard, pure stroke (no fills), drawn on a **50-unit registration
-grid inset 1.25 from the edge** — the round-cap dots at the edges are the registration points.
-Tiles are laid out on that 50-unit grid (viewBox `1.25 1.25 50 50`), so adjacent tiles' path points
+Each tile is an `840 × 840` artboard, pure stroke (no fills), drawn on an **800-unit registration
+grid inset 20 from the edge** — the round-cap dots at the edges are the registration points.
+Tiles are laid out on that 800-unit grid (viewBox `20 20 800 800`), so adjacent tiles' path points
 land exactly on top of each other at any rotation. To extend the font, draw new tiles with the same
 geometry and drop them in `SVG/`.
 

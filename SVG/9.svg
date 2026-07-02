@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 840">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+        stroke: #221f1f;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 40px;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <line class="cls-1" x1="820" y1="220" x2="820" y2="220"/>
+      <line class="cls-1" x1="820" y1="420" x2="820" y2="420"/>
+      <line class="cls-1" x1="820" y1="620" x2="820" y2="620"/>
+      <line class="cls-1" x1="620" y1="820" x2="620" y2="820"/>
+      <line class="cls-1" x1="420" y1="820" x2="420" y2="820"/>
+      <line class="cls-1" x1="220" y1="820" x2="220" y2="820"/>
+      <path class="cls-1" d="M220,120c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M420,120c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M220,120c55.27,0,100,44.73,100,100"/>
+      <path class="cls-1" d="M420,120c55.27,0,100,44.73,100,100"/>
+      <path class="cls-1" d="M420,320c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M520,220c0,55.27-44.73,100-100,100"/>
+      <path class="cls-1" d="M620,120c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M720,20c0,55.27-44.73,100-100,100"/>
+      <path class="cls-1" d="M20,320c55.27,0,100,44.73,100,100"/>
+      <path class="cls-1" d="M220,520c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M320,420c0,55.27-44.73,100-100,100"/>
+      <path class="cls-1" d="M220,320c55.27,0,100,44.73,100,100"/>
+      <path class="cls-1" d="M120,620c0,55.27-44.73,100-100,100"/>
+      <path class="cls-1" d="M20,520c55.27,0,100,44.73,100,100"/>
+      <path class="cls-1" d="M220,320c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M20,120c55.27,0,100,44.73,100,100"/>
+      <path class="cls-1" d="M620,720c55.27,0,100,44.73,100,100"/>
+      <path class="cls-1" d="M420,720c55.27,0,100,44.73,100,100"/>
+      <path class="cls-1" d="M620,720c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M420,720c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M420,520c55.27,0,100,44.73,100,100"/>
+      <path class="cls-1" d="M320,620c0-55.27,44.73-100,100-100"/>
+      <path class="cls-1" d="M220,720c55.27,0,100,44.73,100,100"/>
+      <path class="cls-1" d="M120,820c0-55.27,44.73-100,100-100"/>
+      <path class="cls-1" d="M520,420c0-55.27,44.73-100,100-100"/>
+      <path class="cls-1" d="M620,520c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M720,220c0-55.27,44.73-100,100-100"/>
+      <path class="cls-1" d="M820,320c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M820,720c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M620,520c55.27,0,100,44.73,100,100"/>
+      <path class="cls-1" d="M820,520c-55.27,0-100-44.73-100-100"/>
+      <path class="cls-1" d="M620,320c55.27,0,100,44.73,100,100"/>
+      <line class="cls-1" x1="20" y1="220" x2="20" y2="220"/>
+      <line class="cls-1" x1="220" y1="20" x2="220" y2="20"/>
+      <line class="cls-1" x1="420" y1="20" x2="420" y2="20"/>
+      <line class="cls-1" x1="620" y1="20" x2="620" y2="20"/>
+      <line class="cls-1" x1="20" y1="620" x2="20" y2="620"/>
+      <line class="cls-1" x1="20" y1="420" x2="20" y2="420"/>
+      <line class="cls-1" x1="220" y1="420" x2="220" y2="420"/>
+      <line class="cls-1" x1="220" y1="220" x2="220" y2="220"/>
+      <line class="cls-1" x1="420" y1="220" x2="420" y2="220"/>
+      <line class="cls-1" x1="620" y1="220" x2="620" y2="220"/>
+      <line class="cls-1" x1="620" y1="420" x2="620" y2="420"/>
+      <line class="cls-1" x1="620" y1="620" x2="620" y2="620"/>
+      <line class="cls-1" x1="420" y1="620" x2="420" y2="620"/>
+      <line class="cls-1" x1="220" y1="620" x2="220" y2="620"/>
+      <line class="cls-1" x1="420" y1="420" x2="420" y2="420"/>
+    </g>
+  </g>
+</svg>
