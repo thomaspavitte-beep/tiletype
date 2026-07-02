@@ -81,6 +81,8 @@
   <div class="sec">
     <div class="lbl">Strands</div>
     <div class="row"><span>Colour strands</span><input id="sOn" type="checkbox"></div>
+    <div class="row"><span>Hue</span><span><input id="sHue" type="range" min="0" max="359" step="1" value="220"
+      style="background:linear-gradient(90deg,hsl(0 65% 50%),hsl(60 65% 50%),hsl(120 65% 50%),hsl(180 65% 50%),hsl(240 65% 50%),hsl(300 65% 50%),hsl(360 65% 50%));border-radius:6px"><span class="val" id="sHueV"></span></span></div>
     <div class="btns"><button id="sRecolour">Recolour</button></div>
   </div>
 
@@ -236,7 +238,7 @@ function tileSVG(key){
 let lines = [[]];
 let caret = { r:0, c:0 };
 const params = { ink:"#221f1f", sw:40, bg:"#f4f1ea", size:60 };
-const strandState = { on:false, seed:1, map:null, sig:"" };   // strand engine state (engine below)
+const strandState = { on:false, seed:1, hue:220, map:null, sig:"" };   // strand engine state (engine below)
 const DRAWABLES = "path,line,circle,ellipse,polyline,polygon,rect";
 
 function insertCell(cell){
@@ -562,7 +564,7 @@ function tileGeometry(key){
 }
 
 function computeStrands(){
-  const sig = strandState.seed + "|" + JSON.stringify(lines.map(r=>r.map(c=>c.blank?0:[c.key,c.rot||0])));
+  const sig = strandState.seed + "|" + strandState.hue + "|" + JSON.stringify(lines.map(r=>r.map(c=>c.blank?0:[c.key,c.rot||0])));
   if(strandState.map && strandState.sig === sig) return strandState.map;
   const segs = [];
   const pointUse = new Map();
@@ -596,11 +598,11 @@ function computeStrands(){
     if(!groups.has(root)) groups.set(root, []);
     groups.get(root).push(s);
   });
-  // Harmonious palette: each seed picks a base hue (the "mood"); strands take
-  // analogous hues around it with gently varied sat/lightness, and a few get a
-  // complementary accent. Bigger strands lean darker/stronger for hierarchy.
+  // Harmonious palette: the Hue slider sets the base hue (the "mood"); strands
+  // take analogous hues around it with seed-varied sat/lightness, and a few get
+  // a complementary accent. Bigger strands lean darker/stronger for hierarchy.
   const rnd = mulberry32(strandState.seed);
-  const baseHue = rnd()*360;
+  const baseHue = strandState.hue;               // mood comes from the Hue slider
   const maxSegs = Math.max(1, ...[...groups.values()].map(g => g.length));
   const colours = new Map();   // "r,c,ei" -> css colour
   groups.forEach(g => {
@@ -635,6 +637,13 @@ document.getElementById("sRecolour").addEventListener("click", () => {
   strandState.seed = (Math.random()*0xffffffff)>>>0;
   if(strandState.on) render();
 });
+(function(){
+  const el = document.getElementById("sHue"), out = document.getElementById("sHueV");
+  const ap = () => { strandState.hue = +el.value; out.textContent = el.value + "°";
+    out.style.color = `hsl(${el.value} 65% 55%)`;
+    if(strandState.on) render(); };
+  el.addEventListener("input", ap); ap();
+})();
 
 // ---- typewriter animation ---------------------------------------------------
 const animOpts = { order: "typewriter", speed: 15 };

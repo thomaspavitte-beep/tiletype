@@ -66,9 +66,10 @@ path grid, not by the 840 artboard — see "How rendering works".
   (via `getPointAtLength` in a hidden svg); `computeStrands()` maps endpoints to global grid coords
   (same rotate-about-centre math as export), snaps to 0.05, and union-finds segments whose endpoints
   coincide at points shared by exactly 2 segments (junctions >2 are left uncut; dots and
-  circles/loops are excluded). Strands spanning **≥ 2 cells** get a seeded **harmonious palette**:
-  a base hue per seed, analogous hues (±35°) with varied sat/lightness, ~10% complementary accents,
-  bigger strands darker/stronger;
+  circles/loops are excluded). Strands spanning **≥ 2 cells** get a **harmonious palette**: the
+  **Hue slider** sets the base hue, strands take analogous hues (±35°) with seed-varied
+  sat/lightness, ~10% complementary accents, bigger strands darker/stronger; **Recolour** reshuffles
+  the variation while keeping the chosen hue;
   single-cell strands and dots stay ink — letter *bodies* remain readable, though letters' small
   edge arcs legitimately join field strands (they really do touch the boundary; 4–16 per letter).
   UI: **Colour strands** checkbox + **Recolour** (new seed). On screen colours are applied after
