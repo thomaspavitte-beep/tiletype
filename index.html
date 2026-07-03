@@ -40,7 +40,7 @@
   #sheet { display:flex; flex-direction:column; }
   .line { display:flex; position:relative; }
   .slot { position:relative; flex:0 0 auto; }
-  .slot svg { display:block; width:100%; height:100%; overflow:visible; }
+  .slot svg { display:block; width:100%; height:100%; overflow:visible; transition:transform .6s ease; }
   .slot.veiled svg { visibility:hidden; }
   .slot.filled { cursor:pointer; }
   .cursor-cell { position:absolute; top:0; box-sizing:border-box; pointer-events:none;
@@ -75,6 +75,7 @@
     <div class="btns"><button id="clear">Clear</button><button id="sample">Sample</button><button id="squarify">Square</button><button id="ambient">Ambient</button></div>
     <div class="row"><span>Sound</span><input id="snd" type="checkbox"></div>
     <div class="row"><span>Ambient colours</span><input id="ambCol" type="checkbox" checked></div>
+    <div class="row"><span>Tile drift</span><input id="drift" type="checkbox"></div>
   </div>
 
   <div class="sec">
@@ -1151,6 +1152,40 @@ document.addEventListener("click", (e) => {
 }, true);
 document.addEventListener("fullscreenchange", () => {
   if(ambient.active && !document.fullscreenElement) stopAmbient();
+});
+
+// ---- tile drift ---------------------------------------------------------------
+// Periodically quarter-turn a few random pattern tiles (letters stay fixed) with
+// a smooth CSS spin — with strand colours on, the field visibly re-wires itself.
+const drift = { on:false, timer:null };
+function driftTick(){
+  if(!drift.on) return;
+  if(drawing || playing || ambient.phase === "draw" || ambient.phase === "undraw") return;
+  const cells = [];
+  lines.forEach((row, r) => row.forEach((cell, c) => {
+    if(!cell.blank && PATTERN_KEYS.includes(cell.key)) cells.push({cell, r, c});
+  }));
+  if(!cells.length) return;
+  const n = Math.max(1, Math.min(10, Math.round(cells.length*0.02)));
+  for(let i = 0; i < n; i++){
+    const pick = cells[Math.floor(Math.random()*cells.length)];
+    const prevRot = pick.cell.rot || 0;
+    pick.cell.rot = (prevRot + 1) % 4;
+    const slot = document.querySelector(`.slot.filled[data-r="${pick.r}"][data-c="${pick.c}"]`);
+    const el = slot && slot.querySelector("svg");
+    if(el){
+      // cumulative degrees so every turn spins the same way (270 -> 360, not -> 0)
+      const base = el.dataset.deg !== undefined ? +el.dataset.deg : prevRot*90;
+      el.dataset.deg = base + 90;
+      el.style.transform = `rotate(${base + 90}deg)`;
+    }
+  }
+  if(strandState.on) applyStrandColours();     // topology changed: re-fuse + recolour
+}
+document.getElementById("drift").addEventListener("change", e => {
+  drift.on = e.target.checked;
+  if(drift.on && !drift.timer) drift.timer = setInterval(driftTick, 1200);
+  else if(!drift.on && drift.timer){ clearInterval(drift.timer); drift.timer = null; }
 });
 
 // ---- typewriter animation ---------------------------------------------------

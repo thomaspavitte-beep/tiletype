@@ -109,6 +109,12 @@ path grid, not by the 840 artboard — see "How rendering works".
   on, hides the panel/hint/cursor via `body.ambient` CSS, and tolerates `requestFullscreen`
   rejection (runs in-page). **Any key, click, or leaving fullscreen exits**, restoring the user's
   exact prior composition, size, hue, and checkbox state from a snapshot.
+- **Tile drift** — `Tile drift` checkbox (Compose): every 1.2 s a few random **pattern** tiles
+  (2%, max 10; letters never move) quarter-turn clockwise via a `.slot svg` CSS transform
+  transition, using cumulative degrees on `dataset.deg` so spins never reverse; the document state
+  (`cell.rot`) is updated so exports/strands stay consistent, and with strand colours on the field
+  re-fuses + recolours after each tick. Ticks skip while a draw/undraw/typewriter animation runs;
+  a plain `render()` (any edit) resets to canonical transforms.
 - **Sound** — `Sound` checkbox (Compose section), off by default; first tick lazily creates the
   `AudioContext` (gesture) and unticking suspends it (hard silence). Soft sine **plings** fire as
   strands complete during forward draws (pitch from `log(chain.total)` on a minor pentatonic across
