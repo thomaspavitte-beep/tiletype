@@ -102,7 +102,10 @@ path grid, not by the 840 artboard — see "How rendering works".
   loop: compose a random poem (hue drifts +47° per cycle, tile size auto-fits the viewport; with the
   **Ambient colours** checkbox on, each cycle also rolls a fresh paper/ink **colourway** tied to the
   cycle's hue via `ambientColourway()`/`hslToHex` — mostly tinted light paper with deep ink, ~35%
-  inverted night cycles — restored on exit; `computeStrands` lightens strand colours on dark paper,
+  inverted night cycles — restored on exit; the page backdrop (`#stageWrap` + `body`) is painted with the paper colour each
+  cycle via `ambientBackdrop()` and the paper's shadow is dropped (`body.ambient #paper`), so
+  fullscreen ambient is edge-to-edge immersive rather than a floating card — cleared on exit;
+  `computeStrands` lightens strand colours on dark paper,
   keyed off `params.bg` luminance, and `params.bg` is part of the strand cache signature), strand
   **draw-in** (9 s), **hold** (6 s), **undraw** (4 s, `runStrandAnim({reverse})` — the shared
   animator that also powers Draw/Stop), then the next poem, forever. Ambient forces strand colours

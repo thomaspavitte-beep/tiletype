@@ -50,6 +50,7 @@
   #hint { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); font-size:11px; opacity:.4; pointer-events:none; }
   body.ambient #panel, body.ambient #hint, body.ambient .cursor-cell { display:none; }
   body.ambient #stageWrap { cursor:none; }
+  body.ambient #paper { box-shadow:none; }
   #status { font-size:11px; opacity:.5; margin-top:10px; }
 </style>
 </head>
@@ -1070,6 +1071,12 @@ function ambientColourway(){
   document.getElementById("bg").value = params.bg;
   document.getElementById("ink").value = params.ink;
 }
+// paint the page behind the paper with the paper colour, so fullscreen ambient
+// is edge-to-edge immersive instead of a floating card on the dark stage
+function ambientBackdrop(col){
+  document.getElementById("stageWrap").style.background = col || "";
+  document.body.style.background = col || "";
+}
 function ambientCycle(){
   if(!ambient.active) return;
   ambient.phase = "compose"; ambient.cycle++;
@@ -1084,6 +1091,7 @@ function ambientCycle(){
   composePoem();
   ambientFit();
   render();
+  ambientBackdrop(params.bg);                     // page backdrop matches the paper
   ambient.phase = "draw";
   ambient.handle = runStrandAnim({ T: AMBIENT_T.draw, onDone: () => {
     if(!ambient.active) return;
@@ -1125,6 +1133,7 @@ function stopAmbient(){
   if(ambient.handle){ ambient.handle.cancel(); ambient.handle = null; }
   if(ambient.timer){ clearTimeout(ambient.timer); ambient.timer = null; }
   document.body.classList.remove("ambient");
+  ambientBackdrop("");                             // restore the dark stage
   if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
   const s = ambient.saved; ambient.saved = null;
   if(s){
