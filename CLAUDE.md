@@ -118,6 +118,22 @@ path grid, not by the 840 artboard — see "How rendering works".
   (`cell.rot`) is updated so exports/strands stay consistent, and with strand colours on the field
   re-fuses + recolours after each tick. Ticks skip while a draw/undraw/typewriter animation runs;
   a plain `render()` (any edit) resets to canonical transforms.
+- **Public player mode** — the **default view** (no query param) after `loadFont()`: `startPlayer()`
+  sets `ambient.player`, `body.player` (CSS hides the panel, shows `#playerBar`), forces the public
+  recipe (border ON, square OFF, ambient colours ON) and runs `startAmbient({fullscreen:false})`.
+  `?studio` boots the classic full app. In player mode clicks/keys do NOT exit the loop; keys:
+  ←/→ prev/next, Space pause, F fullscreen. The bar (auto-hides after 3 s idle via `pokeBar`)
+  has prev/pause/next, a **live stroke-width slider** (sets the `--sw` var directly on `#sheet`,
+  no re-render, so animations survive), sound/drift proxies to the studio checkboxes, fullscreen,
+  and a `?studio` link. **Prev/next**: `playerSkip(dir)` cancels the current phase, runs a 900 ms
+  reverse dissolve, then `ambientCycle(replay?)` — `ambient.history` records each cycle's
+  `{poemIdx, poemSeed, hue, ink, bg}` and prev replays the previous entry exactly. **Pause** parks
+  on the held piece (`ambientArmHold` split out; the hold timer is cleared/re-armed).
+- **Hover a line** (player + studio, outside draw/undraw phases) — `computeStrands()` also returns
+  `segIndex` ("r,c,ei" → chain) and `maxTotal`; a delegated `pointerover` on `#sheet` highlights the
+  whole chain (its palette colour lifted +18 lightness, or a hue-based glow when colours are off)
+  and, with sound on, plays `plingFreq(chain.total, maxTotal)` — one note per strand entry;
+  `pointerleave`/drift-tick clear via `clearHover()`.
 - **Sound** — `Sound` checkbox (Compose section), off by default; first tick lazily creates the
   `AudioContext` (gesture) and unticking suspends it (hard silence). Soft sine **plings** fire as
   strands complete during forward draws (pitch from `log(chain.total)` on a minor pentatonic across

@@ -51,6 +51,37 @@
   body.ambient #panel, body.ambient #hint, body.ambient .cursor-cell { display:none; }
   body.ambient #stageWrap { cursor:none; }
   body.ambient #paper { box-shadow:none; }
+
+  /* public player mode */
+  #playerBar {
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    display:none; align-items:center; gap:10px; z-index:20;
+    background:rgba(20,18,18,.68); backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.14); border-radius:12px;
+    padding:8px 14px; font-size:12px; color:#eee;
+    transition:opacity .4s ease;
+  }
+  body.player #playerBar { display:flex; }
+  body.player #panel, body.player #hint, body.player .cursor-cell { display:none; }
+  body.player #paper { box-shadow:none; }
+  body.player.hidebar #playerBar { opacity:0; pointer-events:none; }
+  body.player.hidebar #stageWrap { cursor:none; }
+  #playerBar button {
+    cursor:pointer; color:#eee; background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.16); border-radius:8px; padding:5px 10px; font-size:13px;
+  }
+  #playerBar button:hover { background:rgba(255,255,255,.18); }
+  #playerBar button.on { background:#4ea1ff; border-color:#4ea1ff; color:#06233f; }
+  #playerBar .sep { width:1px; height:18px; background:rgba(255,255,255,.15); }
+  #playerBar input[type=range]{ width:90px; accent-color:#4ea1ff; margin:0; }
+  #playerBar label { display:flex; align-items:center; gap:6px; opacity:.85; }
+  #playerBar a { color:#9cc9ff; text-decoration:none; }
+  #playerBar a:hover { text-decoration:underline; }
+  @media (max-width:720px){
+    #playerBar { gap:6px; padding:6px 10px; bottom:10px; max-width:94vw; flex-wrap:wrap; justify-content:center; }
+    #playerBar input[type=range]{ width:64px; }
+    #playerBar label span { display:none; }
+  }
   #status { font-size:11px; opacity:.5; margin-top:10px; }
 </style>
 </head>
@@ -134,6 +165,20 @@
 <div id="stageWrap">
   <div id="paper"><div id="sheet"></div></div>
   <div id="hint">click paper to focus · type to compose · click a tile to rotate</div>
+</div>
+
+<div id="playerBar">
+  <button id="pPrev" title="previous poem (←)">⏮</button>
+  <button id="pPause" title="pause (space)">⏸</button>
+  <button id="pNext" title="next poem (→)">⏭</button>
+  <div class="sep"></div>
+  <label title="stroke width"><span>line</span> <input id="pSw" type="range" min="8" max="128" step="1" value="40"></label>
+  <div class="sep"></div>
+  <button id="pSound" title="sound">♪</button>
+  <button id="pDrift" title="tile drift">↻</button>
+  <button id="pFs" title="fullscreen (f)">⛶</button>
+  <div class="sep"></div>
+  <a id="pStudio" href="?studio" title="open the full studio">Studio</a>
 </div>
 
 <script>
@@ -234,6 +279,8 @@ async function loadFont(){
   if(live>0) st.textContent = `font ready · ${live} live${embedded?` · ${embedded} embedded`:""}`;
   else st.textContent = `font ready · ${keys.length} embedded — run the launcher for live SVG edits`;
   render();
+  // default view is the public player; ?studio opens the full app
+  if(!new URLSearchParams(location.search).has("studio")) startPlayer();
 }
 
 // scoped style injected into every rendered tile
@@ -336,7 +383,18 @@ sheet.addEventListener("click",(e)=>{
 let focused = true;
 window.addEventListener("keydown",(e)=>{
   if(!ready) return;
-  if(ambient.active){ e.preventDefault(); stopAmbient(); return; }
+  if(ambient.active){
+    if(ambient.player){
+      const t=e.target;
+      if(t && t.tagName==="INPUT") return;                      // bar slider keeps its keys
+      if(e.key==="ArrowRight"){ playerSkip(1); e.preventDefault(); }
+      else if(e.key==="ArrowLeft"){ playerSkip(-1); e.preventDefault(); }
+      else if(e.key===" "){ setPaused(!ambient.paused); e.preventDefault(); }
+      else if(e.key==="f"||e.key==="F"){ playerFsToggle(); e.preventDefault(); }
+      return;                                                    // swallow typing in player
+    }
+    e.preventDefault(); stopAmbient(); return;
+  }
   const t=e.target;
   if(t && (t.tagName==="INPUT"||t.tagName==="SELECT"||t.tagName==="TEXTAREA")) return;
   const k = e.key;
@@ -702,7 +760,11 @@ function computeStrands(){
     if(!s.skip) return;
     chains.push({segs:[{r:s.r, c:s.c, ei:s.ei, rev:false, len:s.len, offset:0, dot:s.dot}], total:s.len});
   });
-  strandState.data = { colours, chains }; strandState.sig = sig;
+  // lookup for hover interactions: any segment -> its whole chain
+  const segIndex = new Map();
+  chains.forEach(ch => ch.segs.forEach(sg => segIndex.set(sg.r + "," + sg.c + "," + sg.ei, ch)));
+  const maxTotal = Math.max(1, ...chains.map(c => c.total));
+  strandState.data = { colours, chains, segIndex, maxTotal }; strandState.sig = sig;
   return strandState.data;
 }
 
@@ -1040,7 +1102,8 @@ document.getElementById("sWebM").addEventListener("click", exportDrawWebM);
 
 // ---- ambient gallery mode ----------------------------------------------------
 // Fullscreen auto-play: a poem draws itself in, holds, dissolves, next poem.
-const ambient = { active:false, handle:null, timer:null, saved:null, phase:"", cycle:0 };
+const ambient = { active:false, handle:null, timer:null, saved:null, phase:"", cycle:0,
+                  player:false, paused:false, history:[] };
 const AMBIENT_T = { draw: 9000, hold: 6000, undraw: 4000 };
 
 function ambientFit(){
@@ -1077,17 +1140,41 @@ function ambientBackdrop(col){
   document.getElementById("stageWrap").style.background = col || "";
   document.body.style.background = col || "";
 }
-function ambientCycle(){
+// after the hold, dissolve and move on (split out so pause/resume can re-arm it)
+function ambientArmHold(){
+  ambient.timer = setTimeout(() => {
+    if(!ambient.active) return;
+    ambient.phase = "undraw";
+    ambient.handle = runStrandAnim({ T: AMBIENT_T.undraw, reverse: true, onDone: () => {
+      // a short breath on blank paper before the next piece begins
+      ambient.timer = setTimeout(() => { if(ambient.active) ambientCycle(); }, 600);
+    }});
+  }, AMBIENT_T.hold);
+}
+function ambientCycle(replay){
   if(!ambient.active) return;
   ambient.phase = "compose"; ambient.cycle++;
-  strandState.hue = (strandState.hue + 47) % 360;              // new mood each cycle
+  if(replay){
+    // replay a previous piece exactly (player prev button)
+    strandState.hue = replay.hue;
+    poemState.idx = replay.poemIdx;
+    poemState.seed = replay.poemSeed;
+    params.ink = replay.ink; params.bg = replay.bg;
+    document.getElementById("ink").value = replay.ink;
+    document.getElementById("bg").value = replay.bg;
+  } else {
+    strandState.hue = (strandState.hue + 47) % 360;            // new mood each cycle
+    if(document.getElementById("ambCol").checked) ambientColourway();
+    let next = Math.floor(Math.random()*POEMS.length);
+    if(next === poemState.idx) next = (next + 1) % POEMS.length;
+    poemState.idx = next;
+    poemState.seed = (Math.random()*0xffffffff)>>>0;
+  }
   document.getElementById("sHue").value = strandState.hue;
   document.getElementById("sHueV").textContent = strandState.hue + "°";
-  if(document.getElementById("ambCol").checked) ambientColourway();
-  let next = Math.floor(Math.random()*POEMS.length);
-  if(next === poemState.idx) next = (next + 1) % POEMS.length;
-  poemState.idx = next;
-  poemState.seed = (Math.random()*0xffffffff)>>>0;
+  ambient.history.push({ poemIdx: poemState.idx, poemSeed: poemState.seed,
+    hue: strandState.hue, ink: params.ink, bg: params.bg });
+  if(ambient.history.length > 60) ambient.history.shift();
   composePoem();
   ambientFit();
   render();
@@ -1096,19 +1183,13 @@ function ambientCycle(){
   ambient.handle = runStrandAnim({ T: AMBIENT_T.draw, onDone: () => {
     if(!ambient.active) return;
     ambient.phase = "hold";
-    ambient.timer = setTimeout(() => {
-      if(!ambient.active) return;
-      ambient.phase = "undraw";
-      ambient.handle = runStrandAnim({ T: AMBIENT_T.undraw, reverse: true, onDone: () => {
-        // a short breath on blank paper before the next piece begins
-        ambient.timer = setTimeout(() => { if(ambient.active) ambientCycle(); }, 600);
-      }});
-    }, AMBIENT_T.hold);
+    if(!ambient.paused) ambientArmHold();          // paused: park on the finished piece
   }});
 }
-function startAmbient(){
+function startAmbient(opts){
   if(ambient.active){ stopAmbient(); return; }
   if(drawing) stopDraw();
+  ambient.history = []; ambient.paused = false;
   ambient.saved = {
     lines: JSON.parse(JSON.stringify(lines)), caret: {...caret},
     size: params.size, hue: strandState.hue, on: strandState.on,
@@ -1121,10 +1202,12 @@ function startAmbient(){
   document.getElementById("sOn").checked = true;
   ambient.active = true; ambient.cycle = 0;
   document.body.classList.add("ambient");
-  try{
-    const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
-    if(p && p.catch) p.catch(()=>{});          // no gesture / unsupported: run in-page
-  }catch(e){}
+  if(!opts || opts.fullscreen !== false){
+    try{
+      const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+      if(p && p.catch) p.catch(()=>{});        // no gesture / unsupported: run in-page
+    }catch(e){}
+  }
   ambientCycle();
 }
 function stopAmbient(){
@@ -1154,14 +1237,132 @@ function stopAmbient(){
   audioDroneStop();
   render();
 }
-document.getElementById("ambient").addEventListener("click", startAmbient);
+document.getElementById("ambient").addEventListener("click", () => startAmbient());
 // any click or leaving fullscreen exits the gallery (capture runs before slot handlers)
+// — except in player mode, where clicks operate the bar and fullscreen is optional
 document.addEventListener("click", (e) => {
-  if(ambient.active){ e.preventDefault(); e.stopPropagation(); stopAmbient(); }
+  if(ambient.active && !ambient.player){ e.preventDefault(); e.stopPropagation(); stopAmbient(); }
 }, true);
 document.addEventListener("fullscreenchange", () => {
-  if(ambient.active && !document.fullscreenElement) stopAmbient();
+  if(ambient.active && !ambient.player && !document.fullscreenElement) stopAmbient();
 });
+
+// ---- public player mode -------------------------------------------------------
+// The default view for visitors: the ambient loop with a fixed recipe (ambient
+// colours on, border on, non-square) and a slim auto-hiding control bar.
+// ?studio opens the full app.
+function startPlayer(){
+  ambient.player = true;
+  document.body.classList.add("player");
+  // the public recipe
+  poemOpts.border = true;  document.getElementById("pBorder").checked = true;
+  poemOpts.square = false; document.getElementById("pSquare").checked = false;
+  document.getElementById("ambCol").checked = true;
+  document.getElementById("pSw").value = params.sw;
+  startAmbient({ fullscreen: false });
+  pokeBar();
+}
+function playerSkip(dir){
+  if(!ambient.active) return;
+  if(ambient.handle){ ambient.handle.cancel(); ambient.handle = null; }
+  if(ambient.timer){ clearTimeout(ambient.timer); ambient.timer = null; }
+  setPaused(false);
+  let replay = null;
+  if(dir < 0){
+    if(ambient.history.length >= 2){ ambient.history.pop(); replay = ambient.history.pop(); }
+    else if(ambient.history.length === 1){ replay = ambient.history.pop(); }
+  }
+  ambient.phase = "undraw";
+  ambient.handle = runStrandAnim({ T: 900, reverse: true, onDone: () => {
+    if(ambient.active) ambientCycle(replay || undefined);
+  }});
+}
+function setPaused(p){
+  if(ambient.paused === p) return;
+  ambient.paused = p;
+  const btn = document.getElementById("pPause");
+  btn.textContent = p ? "▶" : "⏸";
+  btn.classList.toggle("on", p);
+  if(p){ if(ambient.phase === "hold" && ambient.timer){ clearTimeout(ambient.timer); ambient.timer = null; } }
+  else { if(ambient.phase === "hold" && !ambient.timer && ambient.active) ambientArmHold(); }
+}
+function playerFsToggle(){
+  if(document.fullscreenElement){ document.exitFullscreen().catch(()=>{}); }
+  else { const p = document.documentElement.requestFullscreen(); if(p && p.catch) p.catch(()=>{}); }
+}
+document.getElementById("pPrev").addEventListener("click", () => playerSkip(-1));
+document.getElementById("pNext").addEventListener("click", () => playerSkip(1));
+document.getElementById("pPause").addEventListener("click", () => setPaused(!ambient.paused));
+document.getElementById("pFs").addEventListener("click", playerFsToggle);
+document.getElementById("pSound").addEventListener("click", (e) => {
+  const cb = document.getElementById("snd");
+  cb.checked = !cb.checked; cb.dispatchEvent(new Event("change"));
+  e.currentTarget.classList.toggle("on", cb.checked);
+});
+document.getElementById("pDrift").addEventListener("click", (e) => {
+  const cb = document.getElementById("drift");
+  cb.checked = !cb.checked; cb.dispatchEvent(new Event("change"));
+  e.currentTarget.classList.toggle("on", cb.checked);
+});
+document.getElementById("pSw").addEventListener("input", (e) => {
+  params.sw = +e.target.value;
+  document.getElementById("sw").value = params.sw;
+  document.getElementById("swV").textContent = params.sw;
+  sheet.style.setProperty("--sw", params.sw);    // live — no re-render, animations survive
+});
+// auto-hide the bar (and cursor) after a few idle seconds
+let barIdle = null;
+function pokeBar(){
+  if(!ambient.player) return;
+  document.body.classList.remove("hidebar");
+  clearTimeout(barIdle);
+  barIdle = setTimeout(() => document.body.classList.add("hidebar"), 3000);
+}
+["mousemove","touchstart","keydown","pointerdown"].forEach(ev =>
+  window.addEventListener(ev, pokeBar, { passive:true }));
+
+// ---- hover a line: trace its whole strand + play its note ---------------------
+// Pointing at any line highlights the full fused strand across the composition
+// and (with sound on) plays a pling pitched by the strand's total length.
+const hover = { chain: null };
+function segEl(sg){
+  const slot = document.querySelector(`.slot.filled[data-r="${sg.r}"][data-c="${sg.c}"]`);
+  if(!slot) return null;
+  return slot.querySelectorAll(DRAWABLES)[sg.ei] || null;
+}
+function clearHover(){
+  if(!hover.chain) return;
+  hover.chain.segs.forEach(sg => { const el = segEl(sg); if(el) el.style.removeProperty("stroke"); });
+  hover.chain = null;
+  applyStrandColours();                            // restore palette strokes
+}
+sheet.addEventListener("pointerover", (e) => {
+  if(drawing || playing) return;
+  if(ambient.active && (ambient.phase === "draw" || ambient.phase === "undraw")) return;
+  const el = e.target;
+  if(!(el instanceof SVGGeometryElement)){ clearHover(); return; }
+  const slot = el.closest(".slot.filled");
+  if(!slot){ clearHover(); return; }
+  let ei = -1;
+  slot.querySelectorAll(DRAWABLES).forEach((x, i) => { if(x === el) ei = i; });
+  if(ei < 0) return;
+  const data = computeStrands();
+  const ch = data.segIndex.get(slot.dataset.r + "," + slot.dataset.c + "," + ei);
+  if(!ch || ch === hover.chain) return;
+  clearHover();
+  hover.chain = ch;
+  // highlight: lift the strand's own colour, or a hue-based glow when colours are off
+  const s0 = ch.segs[0];
+  const base = data.colours.get(s0.r + "," + s0.c + "," + s0.ei);
+  let hl = `hsl(${strandState.hue} 70% 55%)`;
+  if(base){
+    const m = base.match(/hsl\(([\d.]+) ([\d.]+)% ([\d.]+)%\)/);
+    if(m) hl = `hsl(${m[1]} ${m[2]}% ${Math.min(88, +m[3] + 18)}%)`;
+  }
+  ch.segs.forEach(sg => { const el2 = segEl(sg); if(el2) el2.style.setProperty("stroke", hl, "important"); });
+  if(audioOn()) audioPling(plingFreq(ch.total, data.maxTotal), 0.35);
+});
+sheet.addEventListener("pointerleave", clearHover);
 
 // ---- tile drift ---------------------------------------------------------------
 // Periodically quarter-turn a few random pattern tiles (letters stay fixed) with
@@ -1189,6 +1390,7 @@ function driftTick(){
       el.style.transform = `rotate(${base + 90}deg)`;
     }
   }
+  clearHover();                                // hover chain is stale after re-fusing
   if(strandState.on) applyStrandColours();     // topology changed: re-fuse + recolour
 }
 document.getElementById("drift").addEventListener("change", e => {

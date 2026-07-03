@@ -12,7 +12,15 @@ page also works opened straight from disk.
 
 ## Try it
 
-Open the hosted page (GitHub Pages), or locally:
+The hosted page opens the **player**: an ambient gallery that composes little tile poems, draws
+them in strand by strand, and dissolves into the next — with prev/next, pause, a line-width
+slider, sound, tile drift, and fullscreen in a small bar. Hover any line to light up its whole
+connected strand and hear its note (longer strands ring lower).
+
+Add **`?studio`** to the URL for the full tool (type with the font, scatter your own words,
+colour strands, animate, export SVG/PNG/GIF/WebM).
+
+Run it locally:
 
 ```
 python3 -m http.server 8777   # from the repo root
@@ -22,7 +30,7 @@ python3 -m http.server 8777   # from the repo root
 macOS: just double-click `Open Typesetter.command` — it serves the folder and opens the app.
 (First time: right-click → Open, to get past Gatekeeper.)
 
-## Using it
+## Using the studio (`?studio`)
 
 | Keys | |
 |---|---|
