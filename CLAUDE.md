@@ -58,7 +58,9 @@ path grid, not by the 840 artboard — see "How rendering works".
   with a randomly-rotated **pattern tile** (`0`–`9`) with probability = Pattern density (default
   100% — a solid field of pattern with the words embedded; lower it for airier layouts). An optional
   **border** wraps the padded rectangle in a solid ring of pattern tiles. Sliders: Indent (0–6),
-  Word gap (1–3), Pattern density (0–100%); Border checkbox; **Square canvas** checkbox (default on)
+  Word gap (1–3), Pattern density (0–100%), **Field size** (0–10 — wraps that many extra rings of
+  density-filled field around the words before squaring/border, scaling the composition up so the
+  text floats in a larger field); Border checkbox; **Square canvas** checkbox (default on)
   pads the composition to N×N before the border, for social-media-ready square exports. The Compose
   section also has a **Square** button that pads any hand-typed grid to square with centred blanks.
   Output is ordinary `lines` cells, so a generated poem stays fully hand-editable and exports as usual.

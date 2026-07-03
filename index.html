@@ -118,6 +118,7 @@
     <div class="row"><span>Indent</span><span><input id="pIndent" type="range" min="0" max="6" step="1" value="3"><span class="val" id="pIndentV"></span></span></div>
     <div class="row"><span>Word gap</span><span><input id="pGap" type="range" min="1" max="3" step="1" value="1"><span class="val" id="pGapV"></span></span></div>
     <div class="row"><span>Pattern density</span><span><input id="pDensity" type="range" min="0" max="100" step="5" value="100"><span class="val" id="pDensityV"></span></span></div>
+    <div class="row"><span>Field size</span><span><input id="pPad" type="range" min="0" max="10" step="1" value="0"><span class="val" id="pPadV"></span></span></div>
     <div class="row"><span>Border</span><input id="pBorder" type="checkbox" checked></div>
     <div class="row"><span>Square canvas</span><input id="pSquare" type="checkbox" checked></div>
   </div>
@@ -522,7 +523,7 @@ function mulberry32(seed){
 }
 
 const poemState = { idx: -1, seed: 1, custom: null };   // custom = user's own lines (overrides the bank)
-const poemOpts  = { indent: 3, gap: 1, density: 1, border: true, square: true };
+const poemOpts  = { indent: 3, gap: 1, density: 1, border: true, square: true, pad: 0 };
 
 function composePoem(){
   if(poemState.idx < 0 && !poemState.custom) return;
@@ -550,6 +551,15 @@ function composePoem(){
   // pad to a rectangle
   let width = Math.max(...rows.map(r => r.length));
   rows.forEach(r => { while(r.length < width) r.push(filler()); });
+
+  // field size: wrap extra rings of field around the words, scaling the
+  // composition up so the text floats in a larger pattern field
+  for(let i = 0; i < poemOpts.pad; i++){
+    rows.forEach(r => { r.unshift(filler()); r.push(filler()); });
+    width += 2;
+    rows.unshift(Array.from({length: width}, filler));
+    rows.push(Array.from({length: width}, filler));
+  }
 
   if(poemOpts.square){
     // pad to N x N (the border adds equally to both sides, so square stays square)
@@ -617,6 +627,7 @@ function bindPoem(id, apply){
 bindPoem("pIndent",  el => poemOpts.indent = +el.value);
 bindPoem("pGap",     el => poemOpts.gap = +el.value);
 bindPoem("pDensity", el => poemOpts.density = +el.value / 100);
+bindPoem("pPad", el => poemOpts.pad = +el.value);
 document.getElementById("pBorder").addEventListener("change", e => { poemOpts.border = e.target.checked; composePoem(); });
 document.getElementById("pSquare").addEventListener("change", e => { poemOpts.square = e.target.checked; composePoem(); });
 
