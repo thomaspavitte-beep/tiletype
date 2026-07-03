@@ -38,8 +38,9 @@ path grid, not by the 840 artboard — see "How rendering works".
   that forces `stroke:currentColor` and `stroke-width:var(--sw)`, so the panel controls (ink colour,
   stroke width) restyle the baked-in font live.
 - **Document model** — `lines = [[cell,…],…]`, `cell = {key, rot} | {blank:true}`, plus a `caret {r,c}`.
-  Free-growing lines (text-editor feel): letters/digits insert + advance, **Space** = blank cell,
-  **Enter** = new line, **Backspace** = delete/merge, **arrows** move the caret.
+  Free-growing lines (text-editor feel): letters/digits insert + advance, **Space** = a random
+  pattern tile (random rotation; **Shift+Space** = blank cell), **Enter** = new line, **Backspace**
+  = delete/merge, **arrows** move the caret.
 - **Rotation** — click a placed tile to rotate it 90° (`rot` 0–3, CSS `transform:rotate`).
 - **Cursor** — the ready cell is shown as a **subtle highlighted grid square** (`.cursor-cell`), not a
   text caret, so it adheres to the grid. Rows contain only real cells (no trailing spacer column —
@@ -47,7 +48,11 @@ path grid, not by the 840 artboard — see "How rendering works".
   a sheet-level click handler (slots stop propagation).
 - **Controls** — ink colour, stroke width, paper background, tile size (zoom), Clear, Sample.
 - **Poem mode** — a built-in bank of ~45 short original poems (`POEMS`, lowercase a–z only) plus a
-  seeded layout engine (`composePoem` + `mulberry32`). **New poem** picks a poem; **Reshuffle**
+  seeded layout engine (`composePoem` + `mulberry32`). A textarea + **Scatter my words** button set
+  `poemState.custom` (sanitized to `[a-z0-9 ]`; digits become literal pattern tiles) — `composePoem`
+  reads `custom || POEMS[idx]`, so Reshuffle and all sliders work on your own words too; **New
+  poem** clears `custom` (back to the bank); ambient cycles the bank and snapshots/restores
+  `custom`. **New poem** picks a poem; **Reshuffle**
   re-scatters the same poem with a new seed. Lines get random indents (organic, not left-aligned),
   and **every empty cell** (word gaps, indents, padding, spacer rows, inner border ring) is filled
   with a randomly-rotated **pattern tile** (`0`–`9`) with probability = Pattern density (default
@@ -100,6 +105,13 @@ path grid, not by the 840 artboard — see "How rendering works".
   on, hides the panel/hint/cursor via `body.ambient` CSS, and tolerates `requestFullscreen`
   rejection (runs in-page). **Any key, click, or leaving fullscreen exits**, restoring the user's
   exact prior composition, size, hue, and checkbox state from a snapshot.
+- **Sound** — `Sound` checkbox (Compose section), off by default; first tick lazily creates the
+  `AudioContext` (gesture) and unticking suspends it (hard silence). Soft sine **plings** fire as
+  strands complete during forward draws (pitch from `log(chain.total)` on a minor pentatonic across
+  ~3 octaves from A2; gated to chains ≥ 0.75·PITCH and rate-limited to ~8/s), **typewriter clacks**
+  (bandpass-filtered noise burst) on tile insertion, and a quiet detuned **drone** during ambient.
+  All through one master gain (0.15). Note: `AudioContext.resume()` is async — `audioOn()` checks
+  `state === "running"`, so sounds may skip the first instants after re-enabling.
 - **Typewriter animation** — the composition reveals tile by tile (`revealOrder`: `typewriter`
   row-major, `letters first`, `patterns first`, or `random` — a seeded shuffle of every tile;
   speed slider = tiles/sec with per-tile jitter).

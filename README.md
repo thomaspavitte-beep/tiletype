@@ -28,13 +28,15 @@ macOS: just double-click `Open Typesetter.command` — it serves the folder and 
 |---|---|
 | `a`–`z` | place a letter tile |
 | `0`–`9` | place a pattern tile |
-| `Space` / `Enter` / `Backspace` | blank cell / new line / delete |
+| `Space` | random pattern tile (`⇧Space` = blank) |
+| `Enter` / `Backspace` | new line / delete |
 | arrows | move the cursor square |
 | click a tile | rotate it 90° |
 
 - **Stroke / Paper** — live ink colour, stroke width, paper colour, tile size. Alignment is by the
   vector path grid, so changing stroke width never shifts registration.
-- **Poem** — drops one of ~45 built-in short poems onto the paper with organic indents, the empty
+- **Poem** — drops one of ~45 built-in short poems — or **your own words** via the text box — onto
+  the paper with organic indents, the empty
   field filled with randomly-rotated pattern tiles, an optional pattern-tile border, and an optional
   square canvas (social-media friendly). Reshuffle re-scatters the same poem; everything stays
   hand-editable afterwards.
