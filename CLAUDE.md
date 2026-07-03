@@ -85,7 +85,10 @@ path grid, not by the 840 artboard — see "How rendering works".
   slider (2–20 s): seeded stagger, per-chain duration ∝ length, easeInOutCubic; per-frame the active
   segment gets the dash trick — `dasharray = len len`, `dashoffset = len−local` forward or
   `−(len−local)` when `rev` (draws from the segment's far end so the front flows continuously across
-  tile boundaries). Stop/finish → `render()` restores clean state. **Export WebM** (in Strands)
+  tile boundaries). **Dots bloom/shrink**: a dot's visual size is its stroke-width, so the animator
+  eases `stroke-width` 0↔full (inline `!important` override, removed at 100% so `var(--sw)` resumes);
+  the WebM renderer scales the dot radius by the same progress. Stop/finish → `render()` restores
+  clean state. **Export WebM** (in Strands)
   replays the same timeline on a canvas via cached per-key `Path2D`s + `setLineDash`/`lineDashOffset`
   (zero-length dots drawn as filled circles — canvas doesn't cap zero-length lines), recorded with
   a wall-clock `setInterval` (not rAF — keeps recording in background tabs). Future layers:
