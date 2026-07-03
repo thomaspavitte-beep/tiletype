@@ -99,7 +99,11 @@ path grid, not by the 840 artboard — see "How rendering works".
   a wall-clock `setInterval` (not rAF — keeps recording in background tabs). Future layers:
   hover-to-trace, fused single-path SVG export, GIF of the draw (needs colour quantizer).
 - **Ambient gallery mode** — the **Ambient** button (Compose section) starts a fullscreen auto-play
-  loop: compose a random poem (hue drifts +47° per cycle, tile size auto-fits the viewport), strand
+  loop: compose a random poem (hue drifts +47° per cycle, tile size auto-fits the viewport; with the
+  **Ambient colours** checkbox on, each cycle also rolls a fresh paper/ink **colourway** tied to the
+  cycle's hue via `ambientColourway()`/`hslToHex` — mostly tinted light paper with deep ink, ~35%
+  inverted night cycles — restored on exit; `computeStrands` lightens strand colours on dark paper,
+  keyed off `params.bg` luminance, and `params.bg` is part of the strand cache signature), strand
   **draw-in** (9 s), **hold** (6 s), **undraw** (4 s, `runStrandAnim({reverse})` — the shared
   animator that also powers Draw/Stop), then the next poem, forever. Ambient forces strand colours
   on, hides the panel/hint/cursor via `body.ambient` CSS, and tolerates `requestFullscreen`
