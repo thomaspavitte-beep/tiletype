@@ -174,6 +174,7 @@
   <button id="pNext" title="next poem (→)">⏭</button>
   <div class="sep"></div>
   <label title="stroke width"><span>line</span> <input id="pSw" type="range" min="8" max="128" step="1" value="40"></label>
+  <label title="field size"><span>field</span> <input id="pPad2" type="range" min="0" max="10" step="1" value="0"></label>
   <div class="sep"></div>
   <button id="pSound" title="sound">♪</button>
   <button id="pDrift" title="tile drift">↻</button>
@@ -1318,6 +1319,22 @@ document.getElementById("pSw").addEventListener("input", (e) => {
   document.getElementById("sw").value = params.sw;
   document.getElementById("swV").textContent = params.sw;
   sheet.style.setProperty("--sw", params.sw);    // live — no re-render, animations survive
+});
+document.getElementById("pPad2").addEventListener("input", (e) => {
+  poemOpts.pad = +e.target.value;
+  document.getElementById("pPad").value = poemOpts.pad;    // keep the studio slider in sync
+  document.getElementById("pPadV").textContent = poemOpts.pad;
+  if(!ambient.active) return;
+  // re-lay the current piece at the new scale (same poem + seed), shown complete,
+  // then let the loop carry on from the hold
+  if(ambient.handle){ ambient.handle.cancel(); ambient.handle = null; }
+  if(ambient.timer){ clearTimeout(ambient.timer); ambient.timer = null; }
+  composePoem();
+  ambientFit();
+  render();
+  ambientBackdrop(params.bg);
+  ambient.phase = "hold";
+  if(!ambient.paused) ambientArmHold();
 });
 // auto-hide the bar (and cursor) after a few idle seconds
 let barIdle = null;

@@ -126,7 +126,10 @@ path grid, not by the 840 artboard — see "How rendering works".
   `?studio` boots the classic full app. In player mode clicks/keys do NOT exit the loop; keys:
   ←/→ prev/next, Space pause, F fullscreen. The bar (auto-hides after 3 s idle via `pokeBar`)
   has prev/pause/next, a **live stroke-width slider** (sets the `--sw` var directly on `#sheet`,
-  no re-render, so animations survive), sound/drift proxies to the studio checkboxes, fullscreen,
+  no re-render, so animations survive), a **field-size slider** (`pPad2` — sets `poemOpts.pad`,
+  re-lays the current piece at the new scale with the same poem+seed shown complete, parks in
+  hold; synced with the studio's Field size slider), sound/drift proxies to the studio checkboxes,
+  fullscreen,
   and a `?studio` link. **Prev/next**: `playerSkip(dir)` cancels the current phase, runs a 900 ms
   reverse dissolve, then `ambientCycle(replay?)` — `ambient.history` records each cycle's
   `{poemIdx, poemSeed, hue, ink, bg}` and prev replays the previous entry exactly. **Pause** parks
