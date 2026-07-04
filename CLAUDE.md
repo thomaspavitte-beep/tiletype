@@ -101,7 +101,9 @@ path grid, not by the 840 artboard — see "How rendering works".
   a wall-clock `setInterval` (not rAF — keeps recording in background tabs). Future layers:
   hover-to-trace, fused single-path SVG export, GIF of the draw (needs colour quantizer).
 - **Ambient gallery mode** — the **Ambient** button (Compose section) starts a fullscreen auto-play
-  loop: compose a random poem (hue drifts +47° per cycle, tile size auto-fits the viewport; with the
+  loop: compose a random poem (hue drifts +47° per cycle; `ambientFit` is a proper contain-fit —
+  `size = min(W/cols, H/rows)` with viewport→screen fallbacks for hidden tabs — so the piece touches
+  the window on one axis at zoom 100 and re-fits on resize/visibilitychange; with the
   **Ambient colours** checkbox on, each cycle also rolls a fresh paper/ink **colourway** tied to the
   cycle's hue via `ambientColourway()`/`hslToHex` — mostly tinted light paper with deep ink, ~35%
   inverted night cycles — restored on exit; the page backdrop (`#stageWrap` + `body`) is painted with the paper colour each

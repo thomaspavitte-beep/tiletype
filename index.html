@@ -1123,8 +1123,11 @@ function ambientFit(){
   // hidden tabs can measure ~0; fall back to the viewport, then the screen
   const W = wrap.clientWidth  >= 100 ? wrap.clientWidth  : (window.innerWidth  >= 100 ? window.innerWidth  : screen.width);
   const H = wrap.clientHeight >= 100 ? wrap.clientHeight : (window.innerHeight >= 100 ? window.innerHeight : screen.height);
-  const n = Math.max(lines.length, Math.max(1, ...lines.map(r=>r.length)));
-  params.size = Math.max(16, Math.floor(Math.min(W, H)*0.92/n));
+  const cols = Math.max(1, ...lines.map(r => r.length));
+  const rows = Math.max(1, lines.length);
+  // proper contain-fit: the piece touches the window on at least one axis at zoom 100,
+  // so the pattern fills the browser and the zoom slider pushes into real overflow
+  params.size = Math.max(16, Math.floor(Math.min(W/cols, H/rows)));
   const el = document.getElementById("size");
   el.value = params.size;
   document.getElementById("sizeV").textContent = params.size + "px";
