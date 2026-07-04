@@ -138,6 +138,22 @@ path grid, not by the 840 artboard — see "How rendering works".
   reverse dissolve, then `ambientCycle(replay?)` — `ambient.history` records each cycle's
   `{poemIdx, poemSeed, hue, ink, bg}` and prev replays the previous entry exactly. **Pause** parks
   on the held piece (`ambientArmHold` split out; the hold timer is cleared/re-armed).
+- **Your words mode** — a personalised gallery reachable from the player bar ("your words") or
+  `?words`. Three phases tracked in `words.phase` (`null | "typing" | "riff"`): **typing** — the
+  ambient piece dissolves (900 ms reverse strand anim) to a clean sheet where the visitor types
+  directly in the tile font (`typingFit()` sizes ~16 cols × `WORDS_MAX_LINES`+2 rows, 40–110 px;
+  Space = blank gap, Enter = new line, Enter on an empty last line = **weave**; serif placard
+  prompt `#wordsPrompt` shows while the sheet is empty; a hidden `#wordsKeys` input catches soft
+  keyboards via `beforeinput`); **riff** — `composeWordsPiece()` converts the typed cells to
+  `poemState.custom` and re-enters `ambientCycle()`, which in riff skips only the bank pick —
+  same words, fresh seed/hue/colourway every cycle, forever (history entries carry `custom`, so
+  prev/next replay riff variations exactly). Any writing key during the riff returns to a fresh
+  sheet (carrying the letter in); Esc or the "gallery" button restores the bank loop. The mode
+  trick: during typing `ambient.active=false` while `ambient.player` and the body classes stay
+  on, which disarms all the loop timers/refits without touching `startAmbient`/`stopAmbient`.
+  Weaving ≤3 letters temporarily floors `poemOpts.pad` at 2 (restored by `wordsRestorePad()`).
+  Gotcha: `setPaused(false)` must run **before** cancelling `ambient.timer` — unpausing in
+  "hold" re-arms the hold timer (this ordering is also fixed in `playerSkip`).
 - **Hover a line** (player + studio, outside draw/undraw phases) — `computeStrands()` also returns
   `segIndex` ("r,c,ei" → chain) and `maxTotal`; a delegated `pointerover` on `#sheet` highlights the
   whole chain (its palette colour lifted +18 lightness, or a hue-based glow when colours are off)

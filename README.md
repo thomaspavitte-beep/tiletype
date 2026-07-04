@@ -19,6 +19,12 @@ them in strand by strand, and dissolves into the next — with prev/next, pause,
 slider, sound, tile drift, and fullscreen in a small bar. Hover any line to light up its whole
 connected strand and hear its note (longer strands ring lower).
 
+Press **your words** in the player bar (or add **`?words`** to the URL) for the personalised
+gallery: type your own words directly in the tile font on a clean sheet, press Enter twice, and
+they weave themselves into the pattern field — then the gallery riffs on them, re-composing the
+same words in a new layout and colourway, endlessly. Any key starts a new phrase; Esc returns to
+the gallery's own poems.
+
 Add **`?studio`** to the URL for the full tool (type with the font, scatter your own words,
 colour strands, animate, export SVG/PNG/GIF/WebM).
 

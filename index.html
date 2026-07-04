@@ -84,6 +84,32 @@
     #playerBar label span { display:none; }
   }
   #status { font-size:11px; opacity:.5; margin-top:10px; }
+
+  /* your-words mode: personalised gallery (typing sheet + riff loop) */
+  #wordsPrompt {
+    position:absolute; left:50%; top:66%; transform:translateX(-50%);
+    font:400 13px/1.6 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+    letter-spacing:.35em; text-transform:lowercase; white-space:nowrap;
+    opacity:0; transition:opacity 1.2s ease; pointer-events:none;
+  }
+  body.words-typing #wordsPrompt.show { opacity:.45; }
+  body.words-typing #wordsPrompt.pulse { animation:promptPulse .9s ease; }
+  @keyframes promptPulse { 0%,100%{ opacity:.45; } 50%{ opacity:.95; } }
+  body.words-typing .cursor-cell {
+    display:block;
+    background:color-mix(in srgb, var(--cursor-ink, #4ea1ff) 10%, transparent);
+    box-shadow:inset 0 0 0 1.5px var(--cursor-ink, rgba(78,161,255,.55));
+  }
+  body.ambient.words-typing #stageWrap, body.player.words-typing #stageWrap { cursor:text; }
+  #stageWrap, body { transition:background-color 1.2s ease; }
+  #wordsKeys { position:fixed; left:-10px; top:0; width:1px; height:1px; opacity:0; border:0; padding:0; background:transparent; }
+  /* the bar adapts to the phase: typing shows weave/gallery, riff shows gallery */
+  #pWeave, #pGallery { display:none; }
+  #pWords, #pWeave, #pGallery { font-variant:small-caps; letter-spacing:.12em; }
+  body.words-typing #pPrev, body.words-typing #pPause, body.words-typing #pNext,
+  body.words-typing #pWords, body.words-riff #pWords { display:none; }
+  body.words-typing #pWeave, body.words-typing #pGallery,
+  body.words-riff #pGallery { display:inline-block; }
 </style>
 </head>
 <body>
@@ -167,17 +193,22 @@
 <div id="stageWrap">
   <div id="paper"><div id="sheet"></div></div>
   <div id="hint">click paper to focus · type to compose · click a tile to rotate</div>
+  <div id="wordsPrompt">type something…</div>
+  <input id="wordsKeys" autocapitalize="none" autocomplete="off" spellcheck="false" aria-label="type your words">
 </div>
 
 <div id="playerBar">
   <button id="pPrev" title="previous poem (←)">⏮</button>
   <button id="pPause" title="pause (space)">⏸</button>
   <button id="pNext" title="next poem (→)">⏭</button>
+  <button id="pWeave" title="weave your words into the field (enter)">weave</button>
+  <button id="pGallery" title="back to the gallery (esc)">gallery</button>
   <div class="sep"></div>
   <label title="stroke width"><span>line</span> <input id="pSw" type="range" min="8" max="128" step="1" value="40"></label>
   <label title="field size"><span>field</span> <input id="pPad2" type="range" min="0" max="10" step="1" value="0"></label>
   <label title="zoom"><span>zoom</span> <input id="pZoom" type="range" min="100" max="400" step="5" value="100"></label>
   <div class="sep"></div>
+  <button id="pWords" title="write your own words">your words</button>
   <button id="pSound" title="sound">♪</button>
   <button id="pDrift" title="tile drift">↻</button>
   <button id="pFs" title="fullscreen (f)">⛶</button>
@@ -281,8 +312,10 @@ async function loadFont(){
   if(live>0) st.textContent = `font ready · ${live} live${embedded?` · ${embedded} embedded`:""}`;
   else st.textContent = `font ready · ${keys.length} embedded — run the launcher for live SVG edits`;
   render();
-  // default view is the public player; ?studio opens the full app
-  if(!new URLSearchParams(location.search).has("studio")) startPlayer();
+  // default view is the public player; ?studio opens the full app;
+  // ?words starts straight on the personalised typing sheet
+  const q = new URLSearchParams(location.search);
+  if(!q.has("studio")){ startPlayer(); if(q.has("words")) enterWordsTyping(); }
 }
 
 // scoped style injected into every rendered tile
@@ -385,10 +418,28 @@ sheet.addEventListener("click",(e)=>{
 let focused = true;
 window.addEventListener("keydown",(e)=>{
   if(!ready) return;
+  if(words.phase === "typing"){
+    const t = e.target;
+    if(t && t.tagName==="INPUT" && t.id!=="wordsKeys") return;  // bar sliders keep their keys
+    handleWordsTyping(e); return;
+  }
   if(ambient.active){
     if(ambient.player){
       const t=e.target;
       if(t && t.tagName==="INPUT") return;                      // bar slider keeps its keys
+      if(words.phase === "riff"){
+        if(e.key==="Escape"){ exitWordsToGallery(); }
+        else if(e.key==="ArrowRight"){ playerSkip(1); }
+        else if(e.key==="ArrowLeft"){ playerSkip(-1); }
+        else if(e.key===" "){ setPaused(!ambient.paused); }
+        else if(e.key==="f"||e.key==="F"){ playerFsToggle(); }
+        else if(e.key==="Enter"||e.key==="Backspace"||e.key.length===1){
+          // any writing key: back to a fresh sheet, carrying a letter in
+          const lk = e.key.length===1 ? e.key.toLowerCase() : "";
+          enterWordsTyping(/^[a-z0-9]$/.test(lk) ? lk : undefined);
+        }
+        e.preventDefault(); return;
+      }
       if(e.key==="ArrowRight"){ playerSkip(1); e.preventDefault(); }
       else if(e.key==="ArrowLeft"){ playerSkip(-1); e.preventDefault(); }
       else if(e.key===" "){ setPaused(!ambient.paused); e.preventDefault(); }
@@ -1177,21 +1228,24 @@ function ambientCycle(replay){
     strandState.hue = replay.hue;
     poemState.idx = replay.poemIdx;
     poemState.seed = replay.poemSeed;
+    poemState.custom = replay.custom || null;
     params.ink = replay.ink; params.bg = replay.bg;
     document.getElementById("ink").value = replay.ink;
     document.getElementById("bg").value = replay.bg;
   } else {
     strandState.hue = (strandState.hue + 47) % 360;            // new mood each cycle
     if(document.getElementById("ambCol").checked) ambientColourway();
-    let next = Math.floor(Math.random()*POEMS.length);
-    if(next === poemState.idx) next = (next + 1) % POEMS.length;
-    poemState.idx = next;
+    if(words.phase !== "riff"){                    // riff keeps the visitor's words —
+      let next = Math.floor(Math.random()*POEMS.length);   // only the seed/mood changes
+      if(next === poemState.idx) next = (next + 1) % POEMS.length;
+      poemState.idx = next;
+    }
     poemState.seed = (Math.random()*0xffffffff)>>>0;
   }
   document.getElementById("sHue").value = strandState.hue;
   document.getElementById("sHueV").textContent = strandState.hue + "°";
   ambient.history.push({ poemIdx: poemState.idx, poemSeed: poemState.seed,
-    hue: strandState.hue, ink: params.ink, bg: params.bg });
+    custom: poemState.custom, hue: strandState.hue, ink: params.ink, bg: params.bg });
   if(ambient.history.length > 60) ambient.history.shift();
   composePoem();
   ambientFit();
@@ -1282,9 +1336,9 @@ function startPlayer(){
 }
 function playerSkip(dir){
   if(!ambient.active) return;
+  setPaused(false);       // before the cancels: unpausing in "hold" re-arms the hold timer
   if(ambient.handle){ ambient.handle.cancel(); ambient.handle = null; }
   if(ambient.timer){ clearTimeout(ambient.timer); ambient.timer = null; }
-  setPaused(false);
   let replay = null;
   if(dir < 0){
     if(ambient.history.length >= 2){ ambient.history.pop(); replay = ambient.history.pop(); }
@@ -1354,6 +1408,11 @@ document.getElementById("pPad2").addEventListener("input", (e) => {
 // window resizes (and the tab becoming visible again) re-fit the running piece
 let relayoutT = null;
 window.addEventListener("resize", () => {
+  if(words.phase === "typing"){
+    clearTimeout(relayoutT);
+    relayoutT = setTimeout(() => { typingFit(); render(); }, 250);
+    return;
+  }
   if(!ambient.active) return;
   clearTimeout(relayoutT);
   relayoutT = setTimeout(playerRelayout, 250);
@@ -1363,14 +1422,194 @@ document.addEventListener("visibilitychange", () => {
 });
 // auto-hide the bar (and cursor) after a few idle seconds
 let barIdle = null;
-function pokeBar(){
+function pokeBar(ev){
   if(!ambient.player) return;
+  if(ev && ev.type === "keydown" && words.phase === "typing") return;  // writing keeps the bar away
   document.body.classList.remove("hidebar");
   clearTimeout(barIdle);
   barIdle = setTimeout(() => document.body.classList.add("hidebar"), 3000);
 }
 ["mousemove","touchstart","keydown","pointerdown"].forEach(ev =>
   window.addEventListener(ev, pokeBar, { passive:true }));
+
+// ---- your words mode ----------------------------------------------------------
+// A personalised gallery. From the player, "your words" dissolves the piece to a
+// clean sheet where the visitor types directly in the tile font ("typing"); Enter
+// on an empty last line weaves the words into the pattern field, and the ambient
+// loop then riffs on the SAME words forever — new seed/layout/colourway each cycle
+// ("riff"). Any writing key during the riff starts a fresh sheet; Esc returns to
+// the poem bank. ?words boots straight in.
+const words = { phase: null, padPrev: null };   // phase: null | "typing" | "riff"
+const WORDS_MAX_LINES = 6;
+let wordsMaxCols = 16;                    // recomputed by typingFit()
+
+function sheetHasTiles(){ return lines.some(row => row.some(c => !c.blank)); }
+
+// the tiny-word weave temporarily raises the field size; put it back afterwards
+function wordsRestorePad(){
+  if(words.padPrev === null) return;
+  poemOpts.pad = words.padPrev; words.padPrev = null;
+  document.getElementById("pPad").value = poemOpts.pad;
+  document.getElementById("pPadV").textContent = poemOpts.pad;
+  document.getElementById("pPad2").value = poemOpts.pad;
+}
+
+// size the tiles for a writing sheet: room for ~16 columns and the line cap,
+// clamped so single letters stay monumental and long phrases stay on the paper
+function typingFit(){
+  const wrap = document.getElementById("stageWrap");
+  const W = wrap.clientWidth  >= 100 ? wrap.clientWidth  : (window.innerWidth  >= 100 ? window.innerWidth  : screen.width);
+  const H = wrap.clientHeight >= 100 ? wrap.clientHeight : (window.innerHeight >= 100 ? window.innerHeight : screen.height);
+  params.size = Math.max(40, Math.min(110, Math.floor(Math.min(W/18, H/(WORDS_MAX_LINES+2)))));
+  wordsMaxCols = Math.max(4, Math.floor(W*0.86/params.size));
+  const el = document.getElementById("size");
+  el.value = params.size;
+  document.getElementById("sizeV").textContent = params.size + "px";
+}
+
+function wordsPromptSync(){
+  document.getElementById("wordsPrompt").classList.toggle("show", !sheetHasTiles());
+}
+
+function showWordsSheet(firstKey){
+  ambient.active = false; ambient.phase = ""; words.phase = "typing";
+  document.body.classList.remove("words-riff");
+  document.body.classList.add("words-typing");
+  lines = [[]]; caret = {r:0, c:0};
+  typingFit();
+  render();
+  ambientBackdrop(params.bg);                    // the room keeps its mood
+  const prompt = document.getElementById("wordsPrompt");
+  prompt.style.color = params.ink;
+  prompt.classList.remove("pulse");
+  sheet.style.setProperty("--cursor-ink", params.ink);
+  const wk = document.getElementById("wordsKeys");
+  wk.value = "";
+  wk.focus({ preventScroll: true });             // inside the gesture: raises soft keyboards
+  if(firstKey && KEYMAP[firstKey] && TILES[firstKey]){
+    insertCell({ key: firstKey, rot: 0 }); audioClack(); render();
+  }
+  wordsPromptSync();
+}
+
+function enterWordsTyping(firstKey){
+  if(words.phase === "typing") return;
+  setPaused(false);                              // before the cancels: unpausing re-arms the hold
+  if(ambient.handle){ ambient.handle.cancel(); ambient.handle = null; }
+  if(ambient.timer){ clearTimeout(ambient.timer); ambient.timer = null; }
+  if(sheetHasTiles()){
+    ambient.phase = "undraw";
+    ambient.handle = runStrandAnim({ T: 900, reverse: true, onDone: () => showWordsSheet(firstKey) });
+  } else showWordsSheet(firstKey);
+}
+
+// typed cells -> custom poem lines (blank cells become word gaps)
+function linesToWords(){
+  return lines
+    .map(row => row.map(c => c.blank ? " " : c.key).join(""))
+    .map(l => l.replace(/\s+/g, " ").trim())
+    .filter(l => l.length);
+}
+
+function composeWordsPiece(){
+  if(words.phase !== "typing") return;
+  const arr = linesToWords();
+  const prompt = document.getElementById("wordsPrompt");
+  if(!arr.length){                               // nothing to weave: nudge the invitation
+    prompt.classList.remove("pulse"); void prompt.offsetWidth; prompt.classList.add("pulse");
+    return;
+  }
+  const letters = arr.join("").replace(/ /g, "").length;
+  wordsRestorePad();                             // undo any previous tiny-word boost first
+  if(letters <= 3 && poemOpts.pad < 2){          // a word or two still gets a field to float in
+    words.padPrev = poemOpts.pad;
+    poemOpts.pad = 2;
+    document.getElementById("pPad").value = 2;
+    document.getElementById("pPadV").textContent = 2;
+    document.getElementById("pPad2").value = 2;
+  }
+  words.phase = "riff";
+  poemState.custom = arr;
+  poemState.seed = (Math.random()*0xffffffff)>>>0;
+  document.body.classList.remove("words-typing");
+  document.body.classList.add("words-riff");
+  prompt.classList.remove("show","pulse");
+  document.getElementById("wordsKeys").blur();
+  ambient.history = [];                          // prev/next stay within this phrase
+  const begin = () => { ambient.handle = null; ambient.active = true; ambientCycle(); };
+  ambient.handle = runStrandAnim({ T: 900, reverse: true, onDone: begin });  // the typed letters dissolve…
+}
+
+function exitWordsToGallery(){
+  if(!words.phase) return;
+  setPaused(false);                              // before the cancels: unpausing re-arms the hold
+  if(ambient.handle){ ambient.handle.cancel(); ambient.handle = null; }
+  if(ambient.timer){ clearTimeout(ambient.timer); ambient.timer = null; }
+  words.phase = null;
+  wordsRestorePad();
+  document.body.classList.remove("words-typing","words-riff");
+  document.getElementById("wordsPrompt").classList.remove("show","pulse");
+  document.getElementById("wordsKeys").blur();
+  poemState.custom = null;
+  ambient.history = [];
+  const begin = () => { ambient.handle = null; ambient.active = true; ambientCycle(); };
+  if(sheetHasTiles()){
+    ambient.active = false;                      // suspend the loop during the dissolve
+    ambient.handle = runStrandAnim({ T: 900, reverse: true, onDone: begin });
+  } else begin();
+}
+
+// one typed character (shared by hardware keys and the mobile hidden input)
+function wordsTypeChar(lk){
+  const row = lines[caret.r];
+  if(lk === " "){
+    if(caret.c > 0 && !row[caret.c-1].blank && row.length < wordsMaxCols) insertCell({ blank: true });
+  } else if(KEYMAP[lk] && TILES[lk] && row.length < wordsMaxCols){
+    insertCell({ key: lk, rot: 0 }); audioClack();
+  }
+}
+
+function handleWordsTyping(e){
+  const k = e.key;
+  if(k === "Escape"){ exitWordsToGallery(); e.preventDefault(); return; }
+  if(k === "Enter"){
+    const last = lines.length - 1;
+    if(caret.r === last && lines[last].length === 0 && sheetHasTiles()){
+      composeWordsPiece(); e.preventDefault(); return;   // no render: the dissolve is running
+    }
+    if(lines.length < WORDS_MAX_LINES) newline(); else return;
+  }
+  else if(k === "Backspace"){ backspace(); }
+  else if(k === " " || k.length === 1){ wordsTypeChar(k.toLowerCase()); }
+  else if(k === "ArrowLeft"){ if(caret.c>0)caret.c--; else if(caret.r>0){caret.r--;caret.c=lines[caret.r].length;} }
+  else if(k === "ArrowRight"){ if(caret.c<lines[caret.r].length)caret.c++; else if(caret.r<lines.length-1){caret.r++;caret.c=0;} }
+  else if(k === "ArrowUp"){ if(caret.r>0){caret.r--; clampCaret();} }
+  else if(k === "ArrowDown"){ if(caret.r<lines.length-1){caret.r++; clampCaret();} }
+  else return;                                   // let browser keys (F5 etc.) through
+  render();
+  wordsPromptSync();
+  e.preventDefault();
+}
+
+// mobile: soft keyboards type through the hidden input rather than keydown
+const wordsKeys = document.getElementById("wordsKeys");
+wordsKeys.addEventListener("beforeinput", (e) => {
+  if(words.phase !== "typing") return;
+  e.preventDefault();
+  if(e.inputType === "insertText" && e.data){
+    for(const ch of e.data) wordsTypeChar(ch.toLowerCase());
+  } else if(e.inputType === "deleteContentBackward"){ backspace(); }
+  else return;
+  wordsKeys.value = "";
+  render();
+  wordsPromptSync();
+});
+document.getElementById("stageWrap").addEventListener("click", () => {
+  if(words.phase === "typing") wordsKeys.focus({ preventScroll: true });  // re-summon the keyboard
+});
+document.getElementById("pWords").addEventListener("click", () => enterWordsTyping());
+document.getElementById("pWeave").addEventListener("click", () => composeWordsPiece());
+document.getElementById("pGallery").addEventListener("click", () => exitWordsToGallery());
 
 // ---- hover a line: trace its whole strand + play its note ---------------------
 // Pointing at any line highlights the full fused strand across the composition
@@ -1422,6 +1661,7 @@ const drift = { on:false, timer:null };
 function driftTick(){
   if(!drift.on) return;
   if(drawing || playing || ambient.phase === "draw" || ambient.phase === "undraw") return;
+  if(words.phase === "typing") return;           // never rotate the visitor's letters
   const cells = [];
   lines.forEach((row, r) => row.forEach((cell, c) => {
     if(!cell.blank && PATTERN_KEYS.includes(cell.key)) cells.push({cell, r, c});
