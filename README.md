@@ -12,6 +12,8 @@ page also works opened straight from disk.
 
 ## Try it
 
+**Live:** https://thomaspavitte-beep.github.io/tiletype/
+
 The hosted page opens the **player**: an ambient gallery that composes little tile poems, draws
 them in strand by strand, and dissolves into the next — with prev/next, pause, a line-width
 slider, sound, tile drift, and fullscreen in a small bar. Hover any line to light up its whole

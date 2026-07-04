@@ -176,6 +176,22 @@ Because alignment is by the **path centreline**, it is **independent of stroke w
 Width control never shifts registration (only the visible line weight). The stroke also **scales with
 the tile** (no `vector-effect:non-scaling-stroke`), matching the original font design.
 
+## Hosting / deployment
+The repo is `github.com/thomaspavitte-beep/tiletype`; `index.html` at the root is the site.
+Two hosts deploy automatically on every push to `main`:
+
+- **GitHub Pages (primary):** https://thomaspavitte-beep.github.io/tiletype/ — always the one to
+  check. Builds occasionally lag after a push; kick one manually with
+  `gh api -X POST repos/thomaspavitte-beep/tiletype/pages/builds`.
+- **Netlify (secondary):** https://tile-type.netlify.app — already linked to the GitHub repo with
+  auto-publishing from `main` (do not re-link). It runs on the **free plan (300 credits/month,
+  billing cycle starts the 30th)**; every deploy costs credits, so frequent pushing can exhaust the
+  month's credits, after which all deploys show "Skipped due to account credit usage exceeded" and
+  the site freezes on the last published commit. On the free plan there is nothing to fix — manual
+  "Trigger deploy" is silently ignored too; it resumes automatically at the next billing cycle
+  (or on a plan upgrade). If tile-type.netlify.app looks stale, check the deploys page for
+  "Skipped" entries before debugging anything else.
+
 ## Running
 - **Live editing (recommended):** double-click `Open Typesetter.command`. It serves `LETTERS/` and
   opens `http://localhost:<port>/`. Edit any `SVG/*.svg`, then refresh the browser (⌘R)
