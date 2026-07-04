@@ -184,13 +184,12 @@ Two hosts deploy automatically on every push to `main`:
   check. Builds occasionally lag after a push; kick one manually with
   `gh api -X POST repos/thomaspavitte-beep/tiletype/pages/builds`.
 - **Netlify (secondary):** https://tile-type.netlify.app — already linked to the GitHub repo with
-  auto-publishing from `main` (do not re-link). It runs on the **free plan (300 credits/month,
-  billing cycle starts the 30th)**; every deploy costs credits, so frequent pushing can exhaust the
-  month's credits, after which all deploys show "Skipped due to account credit usage exceeded" and
-  the site freezes on the last published commit. On the free plan there is nothing to fix — manual
-  "Trigger deploy" is silently ignored too; it resumes automatically at the next billing cycle
-  (or on a plan upgrade). If tile-type.netlify.app looks stale, check the deploys page for
-  "Skipped" entries before debugging anything else.
+  auto-publishing from `main` (do not re-link). On the **Personal (paid) plan** since Jul 2026;
+  every deploy costs Netlify credits (billing cycle starts the 30th). If the monthly credits ever
+  run out, all deploys show "Skipped due to account credit usage exceeded" and the site silently
+  freezes on the last published commit — manual "Trigger deploy" is ignored too until credits are
+  added (auto recharge / add-on pack) or the cycle resets. If tile-type.netlify.app looks stale,
+  check the deploys page for "Skipped" entries before debugging anything else.
 
 ## Running
 - **Live editing (recommended):** double-click `Open Typesetter.command`. It serves `LETTERS/` and
