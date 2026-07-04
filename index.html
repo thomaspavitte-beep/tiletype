@@ -64,6 +64,7 @@
   body.player #playerBar { display:flex; }
   body.player #panel, body.player #hint, body.player .cursor-cell { display:none; }
   body.player #paper { box-shadow:none; }
+  body.player #stageWrap { overflow:hidden; }   /* zoomed paper crops symmetrically, no scrollbars */
   body.player.hidebar #playerBar { opacity:0; pointer-events:none; }
   body.player.hidebar #stageWrap { cursor:none; }
   #playerBar button {
@@ -175,6 +176,7 @@
   <div class="sep"></div>
   <label title="stroke width"><span>line</span> <input id="pSw" type="range" min="8" max="128" step="1" value="40"></label>
   <label title="field size"><span>field</span> <input id="pPad2" type="range" min="0" max="10" step="1" value="0"></label>
+  <label title="zoom"><span>zoom</span> <input id="pZoom" type="range" min="100" max="400" step="5" value="100"></label>
   <div class="sep"></div>
   <button id="pSound" title="sound">♪</button>
   <button id="pDrift" title="tile drift">↻</button>
@@ -1118,8 +1120,11 @@ const AMBIENT_T = { draw: 9000, hold: 6000, undraw: 4000 };
 
 function ambientFit(){
   const wrap = document.getElementById("stageWrap");
+  // hidden tabs can measure ~0; fall back to the viewport, then the screen
+  const W = wrap.clientWidth  >= 100 ? wrap.clientWidth  : (window.innerWidth  >= 100 ? window.innerWidth  : screen.width);
+  const H = wrap.clientHeight >= 100 ? wrap.clientHeight : (window.innerHeight >= 100 ? window.innerHeight : screen.height);
   const n = Math.max(lines.length, Math.max(1, ...lines.map(r=>r.length)));
-  params.size = Math.max(16, Math.floor(Math.min(wrap.clientWidth, wrap.clientHeight)*0.92/n));
+  params.size = Math.max(16, Math.floor(Math.min(W, H)*0.92/n));
   const el = document.getElementById("size");
   el.value = params.size;
   document.getElementById("sizeV").textContent = params.size + "px";
@@ -1320,13 +1325,14 @@ document.getElementById("pSw").addEventListener("input", (e) => {
   document.getElementById("swV").textContent = params.sw;
   sheet.style.setProperty("--sw", params.sw);    // live — no re-render, animations survive
 });
-document.getElementById("pPad2").addEventListener("input", (e) => {
-  poemOpts.pad = +e.target.value;
-  document.getElementById("pPad").value = poemOpts.pad;    // keep the studio slider in sync
-  document.getElementById("pPadV").textContent = poemOpts.pad;
+document.getElementById("pZoom").addEventListener("input", (e) => {
+  // camera zoom: CSS transform on the paper — instant, no re-render, animations survive
+  const z = +e.target.value / 100;
+  document.getElementById("paper").style.transform = z === 1 ? "" : `scale(${z})`;
+});
+// re-lay the current piece (same poem + seed), shown complete, and carry on from the hold
+function playerRelayout(){
   if(!ambient.active) return;
-  // re-lay the current piece at the new scale (same poem + seed), shown complete,
-  // then let the loop carry on from the hold
   if(ambient.handle){ ambient.handle.cancel(); ambient.handle = null; }
   if(ambient.timer){ clearTimeout(ambient.timer); ambient.timer = null; }
   composePoem();
@@ -1335,6 +1341,22 @@ document.getElementById("pPad2").addEventListener("input", (e) => {
   ambientBackdrop(params.bg);
   ambient.phase = "hold";
   if(!ambient.paused) ambientArmHold();
+}
+document.getElementById("pPad2").addEventListener("input", (e) => {
+  poemOpts.pad = +e.target.value;
+  document.getElementById("pPad").value = poemOpts.pad;    // keep the studio slider in sync
+  document.getElementById("pPadV").textContent = poemOpts.pad;
+  playerRelayout();
+});
+// window resizes (and the tab becoming visible again) re-fit the running piece
+let relayoutT = null;
+window.addEventListener("resize", () => {
+  if(!ambient.active) return;
+  clearTimeout(relayoutT);
+  relayoutT = setTimeout(playerRelayout, 250);
+});
+document.addEventListener("visibilitychange", () => {
+  if(!document.hidden && ambient.active) playerRelayout();
 });
 // auto-hide the bar (and cursor) after a few idle seconds
 let barIdle = null;
