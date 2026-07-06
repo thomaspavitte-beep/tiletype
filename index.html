@@ -106,6 +106,29 @@
      paper would snap to each new colourway while the window is still fading */
   body.ambient #paper, body.player #paper { background:transparent !important; }
   #wordsKeys { position:fixed; left:-10px; top:0; width:1px; height:1px; opacity:0; border:0; padding:0; background:transparent; }
+  /* pattern-tile drawer: pick which tiles the engine composes with */
+  #tileDrawer {
+    position:fixed; bottom:74px; left:50%; transform:translateX(-50%) translateY(8px);
+    display:none; gap:8px; z-index:20;
+    background:rgba(20,18,18,.68); backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.14); border-radius:12px;
+    padding:10px 12px; opacity:0; pointer-events:none;
+    transition:opacity .3s ease, transform .3s ease;
+  }
+  body.player #tileDrawer { display:flex; }
+  body.player.tilesOpen #tileDrawer { opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0); }
+  body.player.hidebar #tileDrawer { opacity:0; pointer-events:none; }
+  #tileDrawer .pt {
+    width:52px; height:52px; padding:5px; cursor:pointer; color:#eee;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16);
+    border-radius:9px; transition:opacity .25s ease;
+  }
+  #tileDrawer .pt svg { display:block; width:100%; height:100%; overflow:visible; }
+  #tileDrawer .pt.off { opacity:.25; }
+  @media (max-width:720px){
+    #tileDrawer { bottom:64px; gap:5px; padding:8px; max-width:94vw; flex-wrap:wrap; justify-content:center; }
+    #tileDrawer .pt { width:42px; height:42px; }
+  }
   /* the bar adapts to the phase: typing shows weave/gallery, riff shows gallery */
   #pWeave, #pGallery { display:none; }
   #pWords, #pWeave, #pGallery { font-variant:small-caps; letter-spacing:.12em; }
@@ -214,10 +237,13 @@ if(!new URLSearchParams(location.search).has("studio"))document.body.classList.a
   <label title="zoom"><span>zoom</span> <input id="pZoom" type="range" min="100" max="400" step="5" value="100"></label>
   <div class="sep"></div>
   <button id="pWords" title="write your own words">your words</button>
+  <button id="pTiles" title="choose the pattern tiles">▦</button>
   <button id="pSound" title="sound">♪</button>
   <button id="pDrift" title="tile drift">↻</button>
   <button id="pFs" title="fullscreen (f)">⛶</button>
 </div>
+
+<div id="tileDrawer"></div>
 
 <script>
 "use strict";
@@ -317,6 +343,7 @@ async function loadFont(){
   if(live>0) st.textContent = `font ready · ${live} live${embedded?` · ${embedded} embedded`:""}`;
   else st.textContent = `font ready · ${keys.length} embedded — run the launcher for live SVG edits`;
   render();
+  buildTileDrawer();                     // thumbnails need the loaded font
   // default view is the public player; ?studio opens the full app;
   // ?words starts straight on the personalised typing sheet
   const q = new URLSearchParams(location.search);
@@ -461,7 +488,7 @@ window.addEventListener("keydown",(e)=>{
   else if(k===" "){
     if(e.shiftKey){ insertCell({blank:true}); }               // deliberate gap
     else {
-      const pk = PATTERN_KEYS[Math.floor(Math.random()*PATTERN_KEYS.length)];
+      const pk = randPatternKey();
       if(TILES[pk]) insertCell({key: pk, rot: Math.floor(Math.random()*4)});
       else insertCell({blank:true});
       audioClack();
@@ -570,6 +597,14 @@ const POEMS = [
   ["quiet sunday","even the dust","sleeps in"],
 ];
 const PATTERN_KEYS = "0123456789".split("");
+// which pattern tiles the engine may pick from (player drawer edits this).
+// One rnd() call per pick regardless of bank size, so toggling tiles keeps the
+// same seeded layout and only swaps which patterns appear.
+let patternActive = PATTERN_KEYS.slice();
+function randPatternKey(r){
+  const bank = patternActive.length ? patternActive : PATTERN_KEYS;
+  return bank[Math.floor((r || Math.random)() * bank.length)];
+}
 
 function mulberry32(seed){
   let a = seed >>> 0;
@@ -589,7 +624,7 @@ function composePoem(){
   const poem = poemState.custom || POEMS[poemState.idx];
   const rnd = mulberry32(poemState.seed);
   const ri = n => Math.floor(rnd() * (n + 1));            // 0..n inclusive
-  const patternCell = () => ({ key: PATTERN_KEYS[Math.floor(rnd()*PATTERN_KEYS.length)], rot: Math.floor(rnd()*4) });
+  const patternCell = () => ({ key: randPatternKey(rnd), rot: Math.floor(rnd()*4) });
   const blank = () => ({ blank: true });
   // every empty cell in the composition is a density-rolled pattern tile
   const filler = () => rnd() < poemOpts.density ? patternCell() : blank();
@@ -1432,7 +1467,9 @@ function pokeBar(ev){
   if(ev && ev.type === "keydown" && words.phase === "typing") return;  // writing keeps the bar away
   document.body.classList.remove("hidebar");
   clearTimeout(barIdle);
-  barIdle = setTimeout(() => document.body.classList.add("hidebar"), 3000);
+  barIdle = setTimeout(() => {
+    if(!document.body.classList.contains("tilesOpen")) document.body.classList.add("hidebar");
+  }, 3000);
 }
 ["mousemove","touchstart","keydown","pointerdown"].forEach(ev =>
   window.addEventListener(ev, pokeBar, { passive:true }));
@@ -1612,6 +1649,46 @@ wordsKeys.addEventListener("beforeinput", (e) => {
 document.getElementById("stageWrap").addEventListener("click", () => {
   if(words.phase === "typing") wordsKeys.focus({ preventScroll: true });  // re-summon the keyboard
 });
+// ---- pattern-tile drawer ------------------------------------------------------
+// Choose which pattern tiles the composition engine may pick from. Toggling
+// re-lays the current piece with the same poem + seed, so the effect of the
+// bank is directly comparable. At least one tile always stays selected.
+function buildTileDrawer(){
+  const drawer = document.getElementById("tileDrawer");
+  drawer.innerHTML = "";
+  PATTERN_KEYS.forEach(k => {
+    const b = document.createElement("button");
+    b.className = "pt" + (patternActive.includes(k) ? "" : " off");
+    b.title = "pattern " + k;
+    b.style.setProperty("--sw", 64);             // legible stroke at thumbnail size
+    b.innerHTML = tileSVG(k);
+    b.addEventListener("click", () => {
+      const i = patternActive.indexOf(k);
+      if(i >= 0){
+        if(patternActive.length === 1) return;   // the engine needs at least one
+        patternActive.splice(i, 1);
+      } else patternActive.push(k);
+      b.classList.toggle("off", !patternActive.includes(k));
+      if(ambient.active) playerRelayout();       // same piece + seed, new tile bank
+    });
+    drawer.appendChild(b);
+  });
+}
+function placeTileDrawer(){
+  // sit just above the bar whatever height it wrapped to
+  const bar = document.getElementById("playerBar");
+  document.getElementById("tileDrawer").style.bottom =
+    (window.innerHeight - bar.getBoundingClientRect().top + 8) + "px";
+}
+document.getElementById("pTiles").addEventListener("click", (e) => {
+  const open = document.body.classList.toggle("tilesOpen");
+  e.currentTarget.classList.toggle("on", open);
+  if(open) placeTileDrawer();
+});
+window.addEventListener("resize", () => {
+  if(document.body.classList.contains("tilesOpen")) placeTileDrawer();
+});
+
 document.getElementById("pWords").addEventListener("click", () => enterWordsTyping());
 document.getElementById("pWeave").addEventListener("click", () => composeWordsPiece());
 document.getElementById("pGallery").addEventListener("click", () => exitWordsToGallery());

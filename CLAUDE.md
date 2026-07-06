@@ -135,7 +135,13 @@ path grid, not by the 840 artboard — see "How rendering works".
   re-lays the current piece at the new scale with the same poem+seed shown complete, parks in
   hold; synced with the studio's Field size slider), a **zoom slider** (`pZoom`, 100–400% — CSS
   `scale()` on `#paper`, instant, survives renders/cycles; `body.player #stageWrap` is
-  `overflow:hidden` so the zoomed paper crops symmetrically), sound/drift proxies to the studio
+  `overflow:hidden` so the zoomed paper crops symmetrically), a **pattern-tile drawer** (`pTiles`
+  ▦ button → `#tileDrawer`, a frosted panel anchored just above the bar via `placeTileDrawer()`;
+  the 10 pattern tiles rendered live via `tileSVG`, click to include/exclude — edits
+  `patternActive`, the bank `randPatternKey()` picks from; every random pattern pick consumes
+  exactly one rnd() call regardless of bank size, so toggling re-lays the SAME poem+seed via
+  `playerRelayout()` with only the tile mix changed; at least one tile always stays selected;
+  session-only, not persisted), sound/drift proxies to the studio
   checkboxes, fullscreen,
   and a `?studio` link. **Prev/next**: `playerSkip(dir)` cancels the current phase, runs a 900 ms
   reverse dissolve, then `ambientCycle(replay?)` — `ambient.history` records each cycle's
