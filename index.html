@@ -113,6 +113,8 @@
 </style>
 </head>
 <body>
+<script>/* mount the public player before the panel paints — no studio flash on load */
+if(!new URLSearchParams(location.search).has("studio"))document.body.classList.add("player");</script>
 <div id="panel">
   <h1>Tiles · Type</h1>
   <p class="sub">Click the paper, then type. Letters&nbsp;a–z and digits&nbsp;0–9 place tiles.</p>
