@@ -102,6 +102,9 @@
   }
   body.ambient.words-typing #stageWrap, body.player.words-typing #stageWrap { cursor:text; }
   #stageWrap, body { transition:background-color 1.2s ease; }
+  /* in the immersive modes the backdrop is the single colour surface — a painted
+     paper would snap to each new colourway while the window is still fading */
+  body.ambient #paper, body.player #paper { background:transparent !important; }
   #wordsKeys { position:fixed; left:-10px; top:0; width:1px; height:1px; opacity:0; border:0; padding:0; background:transparent; }
   /* the bar adapts to the phase: typing shows weave/gallery, riff shows gallery */
   #pWeave, #pGallery { display:none; }

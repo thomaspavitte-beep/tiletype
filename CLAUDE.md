@@ -108,7 +108,10 @@ path grid, not by the 840 artboard — see "How rendering works".
   cycle's hue via `ambientColourway()`/`hslToHex` — mostly tinted light paper with deep ink, ~35%
   inverted night cycles — restored on exit; the page backdrop (`#stageWrap` + `body`) is painted with the paper colour each
   cycle via `ambientBackdrop()` and the paper's shadow is dropped (`body.ambient #paper`), so
-  fullscreen ambient is edge-to-edge immersive rather than a floating card — cleared on exit;
+  fullscreen ambient is edge-to-edge immersive rather than a floating card — cleared on exit.
+  In ambient/player the paper itself is `background:transparent !important` — the backdrop is
+  the **single** colour surface (it fades 1.2 s between colourways; a painted paper would snap
+  each cycle and visibly desync from the fade). Studio keeps the painted paper card;
   `computeStrands` lightens strand colours on dark paper,
   keyed off `params.bg` luminance, and `params.bg` is part of the strand cache signature), strand
   **draw-in** (9 s), **hold** (6 s), **undraw** (4 s, `runStrandAnim({reverse})` — the shared
